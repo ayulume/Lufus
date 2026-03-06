@@ -490,6 +490,13 @@ class Rufus(QMainWindow):
         self.all_fs_options = ["NTFS", "FAT32", "exFAT", "ext4", "UDF"]
         self.combo_fs.addItems(self.all_fs_options)
         self.combo_fs.currentTextChanged.connect(self.updateFS)
+
+        lbl_flash = QLabel("Flash option")
+        lbl_flash.setStyleSheet("font-weight: normal; font-size: 9pt;")
+        self.combo_flash = QComboBox()
+        self.all_flash_options = ["Iso Mode","Woe USB","Ventoy","DD"]
+        self.combo_flash.addItems(self.all_flash_options)
+        self.combo_flash.currentTextChanged.connect(self.updateflash)
         
         lbl_cluster = QLabel("Cluster size")
         lbl_cluster.setStyleSheet("font-weight: normal; font-size: 9pt;")
@@ -500,6 +507,8 @@ class Rufus(QMainWindow):
         
         grid_fmt.addWidget(lbl_fs, 0, 0)
         grid_fmt.addWidget(self.combo_fs, 1, 0)
+        grid_fmt.addWidget(lbl_flash, 0, 5)
+        grid_fmt.addWidget(self.combo_flash, 1, 5)
         grid_fmt.addWidget(lbl_cluster, 0, 2)
         grid_fmt.addWidget(self.combo_cluster, 1, 2)
         main_layout.addLayout(grid_fmt)
@@ -639,10 +648,15 @@ class Rufus(QMainWindow):
 
     def updateFS(self):
         states.currentFS = self.combo_fs.currentIndex()
+
+    def updateflash(self):
+        self.combo_device.clear()
+        states.currentflash = self.combo_flash.currentIndex()
     
     def update_image_option(self):
         states.image_option = self.combo_image_option.currentText()
         self._update_filesystem_options()
+        self._update_flashing_options()
         # print(f"Global state updated to: {states.image_option}")
     
     def _update_filesystem_options(self):
@@ -656,6 +670,23 @@ class Rufus(QMainWindow):
             self.combo_fs.setCurrentText("NTFS")
         self.combo_fs.blockSignals(False)
         self.updateFS()
+
+
+    def _update_flashing_options(self):
+        self.combo_flash.blockSignals(True)
+        self.combo_flash.clear()
+        
+        if states.image_option == "Standard Linux":
+            # Linux mode: only DD and Ventoy
+            self.combo_flash.addItems(["DD", "Ventoy"])
+            self.combo_flash.setCurrentText("DD")
+        else:
+            # Windows/Other mode: Iso Mode, Woe USB, Ventoy
+            self.combo_flash.addItems(["Iso Mode", "Woe USB", "Ventoy"])
+            self.combo_flash.setCurrentText("Iso Mode")
+        
+        self.combo_flash.blockSignals(False)
+        self.updateflash() 
 
     def update_partition_scheme(self):
         states.partition_scheme = self.combo_partition.currentIndex()
