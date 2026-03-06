@@ -256,8 +256,10 @@ class Rufus(QMainWindow):
                 border-color: #D0D0D0;
             }
             QCheckBox {
-                spacing: 5px;
-                font-size: 9pt;
+                spacing: 2px;
+                font-size: 8pt;
+                max-height:12px
+                max-width:12px
             }
             QProgressBar {
                 border: 1px solid #A0A0A0;
