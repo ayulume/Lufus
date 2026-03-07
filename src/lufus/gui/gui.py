@@ -15,6 +15,7 @@ from PyQt6.QtGui import QFont
 from lufus.drives import states
 from lufus.drives import formatting as fo
 from lufus.writing.flash_usb import FlashUSB
+from lufus.writing.flash_woeusb import flash_woeusb
 from lufus.drives.find_usb import find_usb
 from lufus.drives.autodetect_usb import UsbMonitor
 
@@ -153,6 +154,43 @@ class FlashWorker(QThread):
             else:
                 self.progress.emit("Flash failed.")
             
+            self.finished.emit(result)
+        except Exception as e:
+            self.progress.emit(f"Error: {str(e)}")
+            self.finished.emit(False)
+
+
+class WoeUSBWorker(QThread):
+    finished = pyqtSignal(bool)
+    progress = pyqtSignal(str)
+    progress_value = pyqtSignal(int)
+
+    def __init__(self, iso_path: str, device_node: str):
+        super().__init__()
+        self.iso_path = iso_path
+        self.device_node = device_node
+
+    def run(self):
+        try:
+            self.progress.emit("Unmounting drive...")
+            self.progress_value.emit(2)
+            for partition in glob(f"{self.device_node}*"):
+                fo.unmount(partition)
+
+            self.progress.emit("Flashing with woeusb...")
+            self.progress_value.emit(5)
+            result = flash_woeusb(
+                self.device_node,
+                self.iso_path,
+                progress_cb=self.progress_value.emit,
+                status_cb=self.progress.emit,
+            )
+
+            if result:
+                self.progress.emit("Flashing complete!")
+            else:
+                self.progress.emit("Flash failed.")
+
             self.finished.emit(result)
         except Exception as e:
             self.progress.emit(f"Error: {str(e)}")
@@ -819,8 +857,29 @@ class lufus(QMainWindow):
 
                 self.log_message(f"Starting Windows flash process: {states.iso_path} -> {mount_path}")
 
-        elif states.image_option == 1: # woe usb
-            pass
+            elif states.currentflash == 1: # Woe USB
+                if not getattr(states, 'iso_path', '') or not Path(states.iso_path).exists():
+                    QMessageBox.warning(self, "No Image", "Please select a valid installation file first.")
+                    return
+                mount_path = self.get_selected_mount_path()
+                if not mount_path:
+                    QMessageBox.warning(self, "No Device", "Please select a USB device first.")
+                    return
+
+                self.btn_start.setEnabled(False)
+                self.btn_cancel.setEnabled(True)
+                self.progress_bar.setValue(0)
+                self.progress_bar.setFormat("Preparing...")
+                self.statusBar.showMessage("Flashing...", 0)
+
+                self.flash_worker = WoeUSBWorker(states.iso_path, mount_path)
+                self.flash_worker.progress.connect(lambda msg: self.statusBar.showMessage(msg, 0))
+                self.flash_worker.progress_value.connect(self.progress_bar.setValue)
+                self.flash_worker.progress_value.connect(lambda v: self.progress_bar.setFormat(f"{v}%"))
+                self.flash_worker.finished.connect(self.on_flash_finished)
+                self.flash_worker.start()
+
+                self.log_message(f"Starting woeusb flash process: {states.iso_path} -> {mount_path}")
 
         elif states.image_option == 1: # LINUX
             if states.currentflash == 0: # DD METHOD
