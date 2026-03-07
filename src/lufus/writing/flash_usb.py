@@ -1,12 +1,12 @@
 import os
 import re
 import subprocess
-from lufus_py.writing.check_file_sig import _resolve_device_node
-from lufus_py.writing.check_file_sig import check_iso_signature
-from lufus_py.drives import find_usb as fu
-from lufus_py.drives import states
-from lufus_py.writing.detect_windows import is_windows_iso
-from lufus_py.writing.flash_windows import flash_windows
+from lufus.writing.check_file_sig import _resolve_device_node
+from lufus.writing.check_file_sig import check_iso_signature
+from lufus.drives import find_usb as fu
+from lufus.drives import states
+from lufus.writing.detect_windows import is_windows_iso
+from lufus.writing.flash_windows import flash_windows
 
 def pkexecNotFound():
     print("Error: The command pkexec or labeling software was not found on your system.")

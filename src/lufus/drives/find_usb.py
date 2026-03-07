@@ -2,7 +2,7 @@ import psutil
 import os
 import subprocess
 import getpass
-from lufus_py.drives import states
+from lufus.drives import states
 
 
 ### USB RECOGNITION ###

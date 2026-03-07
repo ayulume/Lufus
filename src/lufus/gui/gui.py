@@ -12,11 +12,11 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt6.QtCore import Qt, QTimer, QThread, pyqtSignal, QPoint, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QFont
 
-from lufus_py.drives import states
-from lufus_py.drives import formatting as fo
-from lufus_py.writing.flash_usb import FlashUSB
-from lufus_py.drives.find_usb import find_usb
-from lufus_py.drives.autodetect_usb import UsbMonitor
+from lufus.drives import states
+from lufus.drives import formatting as fo
+from lufus.writing.flash_usb import FlashUSB
+from lufus.drives.find_usb import find_usb
+from lufus.drives.autodetect_usb import UsbMonitor
 
 
 class LogWindow(QDialog):

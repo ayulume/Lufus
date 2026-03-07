@@ -3,8 +3,8 @@ import shlex
 import subprocess
 import sys
 from pathlib import Path
-from lufus_py.drives import states
-from lufus_py.drives import find_usb as fu
+from lufus.drives import states
+from lufus.drives import find_usb as fu
 
 
 def _get_raw_device(drive: str) -> str:
