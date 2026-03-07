@@ -15,20 +15,18 @@ def FormatFail():
 def unexpected():
     print(f"An unexpected error occurred")
 
-def FlashUSB(iso_path, usb_mount_path) -> bool:
+def FlashUSB(iso_path, raw_device) -> bool:
     # Resolve the device node from the mount path — dd must target the
     # raw device (e.g. /dev/sdb), not the mounted directory.
-    print(states.DN)
-    device_node = states.DN
-    print(device_node)
+    print(raw_device)
     # if not device_node:
     #     print(f"Could not resolve device node for mount path: {usb_mount_path}")
     #     return False
 
     # Strip the partition number so dd writes to the whole disk
     # raw_device = device_node.rstrip("0123456789")
-    raw_device = re.sub(r"[0-9]+$","",device_node) #using regex to get the raw device node
-    print(device_node, raw_device)
+    raw_device = re.sub(r"[0-9]+$","",raw_device) #using regex to get the raw device node
+    print(raw_device)
     
     try:
         if not check_iso_signature(iso_path):
@@ -64,7 +62,6 @@ def FlashUSB(iso_path, usb_mount_path) -> bool:
     #     return False
 
     try:
-        dd_args = ["dd", f"if={iso_path}", f"of={raw_device}", "bs=4M", "status=progress", "conv=fdatasync"]
         print(f"Flashing USB with command: {' '.join(dd_args)}")
     except FileNotFoundError:
         pkexecNotFound()

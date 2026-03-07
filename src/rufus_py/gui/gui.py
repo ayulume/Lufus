@@ -1,5 +1,6 @@
 import sys
 import json
+from glob import glob
 import urllib.parse
 import webbrowser
 from pathlib import Path
@@ -130,18 +131,19 @@ class FlashWorker(QThread):
     finished = pyqtSignal(bool)
     progress = pyqtSignal(str)
     
-    def __init__(self, iso_path: str, mount_path: str):
+    def __init__(self, iso_path: str, device_node: str):
         super().__init__()
         self.iso_path = iso_path
-        self.mount_path = mount_path
+        self.device_node = device_node
     
     def run(self):
         try:
             self.progress.emit("Unmounting drive...")
-            fo.unmount()
+            for partition in glob(f"{self.device_node}*"):
+                fo.unmount(partition)
             
             self.progress.emit("Flashing ISO to device...")
-            result = FlashUSB(self.iso_path, self.mount_path)
+            result = FlashUSB(self.iso_path, self.device_node)
             
             if result:
                 self.progress.emit("Flashing complete!")
@@ -796,8 +798,8 @@ class Rufus(QMainWindow):
                 if not getattr(states, 'iso_path', '') or not Path(states.iso_path).exists():
                     QMessageBox.warning(self, "No Image", "Please select a valid installation file first.")
                     return
-                mount_path = self.get_selected_mount_path()
-                if not mount_path:
+                device_node = self.get_selected_mount_path()
+                if not device_node:
                     QMessageBox.warning(self, "No Device", "Please select a USB device first.")
                     return
                 
@@ -807,12 +809,12 @@ class Rufus(QMainWindow):
                 self.progress_bar.setFormat("Preparing...")
                 self.statusBar.showMessage("Flashing...", 0)
                 
-                self.flash_worker = FlashWorker(states.iso_path, mount_path)
+                self.flash_worker = FlashWorker(states.iso_path, device_node)
                 self.flash_worker.progress.connect(lambda msg: self.statusBar.showMessage(msg, 0))
                 self.flash_worker.finished.connect(self.on_flash_finished)
                 self.flash_worker.start()
                 
-                self.log_message(f"Starting flash process: {states.iso_path} -> {mount_path}")
+                self.log_message(f"Starting flash process: {states.iso_path} -> {device_node}")
             else: # OTHER METHODS NOT YET DONE
                 pass 
         elif states.image_option == 2: # ONLY FORMATTING

@@ -49,21 +49,22 @@ def pkexecNotFound():
 def FormatFail():
     print("Error: Formatting failed. Was the password correct? Is the drive unmounted?")
 
+def UnmountFail():
+    print("Error: Unmounting failed. Perhaps either the drive was already unmounted or is in use.")
 
 def unexpected():
     print("An unexpected error occurred")
 
 
 # UNMOUNT FUNCTION
-def unmount():
-    _, drive, _ = _get_mount_and_drive()
+def unmount(drive: str = None):
     if not drive:
         print("Error: No drive node found. Cannot unmount.")
         return
     try:
         subprocess.run(["umount", drive], check=True)
     except subprocess.CalledProcessError:
-        FormatFail()
+        UnmountFail()
     except Exception as e:
         print(f"(UMNTFUNC) DEBUG: Unexpected error type: {type(e).__name__}")
         print(f"DEBUG: Error message: {e}")
