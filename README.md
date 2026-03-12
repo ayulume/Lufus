@@ -25,7 +25,7 @@ lufus aims to:
 
 Currently, running the project can be done by installing briefcase in a venv with
 ```
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate
 pip install briefcase
 ```
