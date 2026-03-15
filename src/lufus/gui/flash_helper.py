@@ -6,7 +6,6 @@ import signal
 import glob
 from lufus.drives import states, formatting as fo
 from lufus.writing.flash_usb import FlashUSB
-from lufus.writing.flash_woeusb import flash_woeusb
 
 # Start a new process group so all children can be killed together
 os.setpgrp()
@@ -52,8 +51,7 @@ def main():
             setattr(states, key, value)
 
         device_node = options["device"]
-        iso_path = options["iso_path"]
-        flash_mode = options["currentflash"]
+        iso_path = options.get("iso_path", "")
         image_option = options["image_option"]
 
         # Unmount all partitions
@@ -63,17 +61,17 @@ def main():
             print(f"STATUS:Unmounting {part}...")
             fo.unmount(part)
 
-        # Decide which flashing function to call
-        if image_option == 0:  # Windows
-            if flash_mode == 0:
-                success = FlashUSB(iso_path, device_node,
-                                   progress_cb=progress_cb, status_cb=status_cb)
-            elif flash_mode == 1:
-                success = flash_woeusb(device_node, iso_path,
-                                       progress_cb=progress_cb, status_cb=status_cb)
+        if image_option == 4:  # Ventoy
+            from lufus.writing.install_ventoy import install_grub
+            status_cb("Installing Ventoy bootloader...")
+            progress_cb(10)
+            success = install_grub(device_node)
+            if success:
+                progress_cb(100)
+                status_cb("Ventoy installation complete")
             else:
-                success = False
-        else:  # Linux / Any (including the old FlashWorker path)
+                status_cb("Ventoy installation failed")
+        else:  # Windows / Linux / Other / Format Only
             success = FlashUSB(iso_path, device_node,
                                progress_cb=progress_cb, status_cb=status_cb)
 
