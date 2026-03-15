@@ -1,195 +1,258 @@
-# due to some issues it's only working with linux don't add without proper changing
-import subprocess
-import sys
-import os
-import shutil
-import stat
-import time
-import urllib.request
-import glob
+# Multi-Boot GRUB Configuration
+# Supports: Ubuntu/Mint, Debian Live, Fedora, Arch, Manjaro, Windows ISOs
+# Place .iso files in the root of OS_PART
 
-# print("Python interpreter is interpreting comment. script will exit.")
-# sys.exit(1)
-# previous lines ensures python isn't broken.
+insmod part_gpt
+insmod part_msdos
+insmod fat
+insmod exfat
+insmod loopback
+insmod iso9660
+insmod ntfs
+insmod search_label
+insmod regexp
+insmod all_video
+insmod font
+insmod gfxterm
+insmod echo
+insmod test
+insmod linux
+insmod chain
 
-"""
-   This  script installs grub in a way that lets users to copy distro iso to the usb device and 
-   boot of any copied iso's in the usb.
-"""
+# --- Appearance ---
+set gfxmode=auto
+terminal_output gfxterm
+set color_normal=white/black
+set color_highlight=black/white
 
-WIMBOOT_URL = "https://github.com/ipxe/wimboot/releases/latest/download/wimboot"
+set timeout=15
+set default=0
 
-def download_wimboot(dest_path)->bool:
-    """
-    Downloads wimboot, a bootloader necessary to boot into windows
+# --- Find the data partition by label ---
+search --no-floppy --label OS_PART --set=root
 
-    Args:
-        dest_path (path): Download path
+echo "Scanning for ISO files on OS_PART..."
 
-    Returns:
-        true: download success
-        false: download failed
-    """
-    print("--- Downloading wimboot ---")
-    try:
-        urllib.request.urlretrieve(WIMBOOT_URL, dest_path)
-        print("wimboot downloaded successfully.")
-        return True
-    except Exception as e:
-        print(f"WARNING: Could not download wimboot: {e}")
-        print("Windows ISO booting will not work.")
-        return False
+# WINDOWS ISO BOOT
+# Requires: wimboot binary at /wimboot on OS_PART
+# wimboot download: https://github.com/ipxe/wimboot/releases
+# After preparing USB, place wimboot file at the root of OS_PART
+for isofile in /*.iso; do
+    if [ -f "$isofile" ]; then
+        # --- Detect Windows ISOs by checking for bootmgr inside ---
+        loopback probewin ($root)$isofile
+        if [ -f (probewin)/bootmgr ] || [ -f (probewin)/BOOTMGR ]; then
+            menuentry "Windows: $isofile" "$isofile" {
+                set iso_path="$2"
+
+                # wimboot must exist on the USB root
+                if [ ! -f ($root)/wimboot ]; then
+                    echo "ERROR: /wimboot not found on OS_PART."
+                    echo "Download wimboot from https://github.com/ipxe/wimboot/releases"
+                    echo "and place it at the root of the OS_PART partition."
+                    sleep 5
+                fi
+
+                loopback wloop ($root)$iso_path
+                set boot_wim=""
+
+                # Try common WIM/ESD paths
+                if [ -f (wloop)/sources/boot.wim ]; then
+                    set boot_wim="(wloop)/sources/boot.wim"
+                elif [ -f (wloop)/sources/boot.esd ]; then
+                    set boot_wim="(wloop)/sources/boot.esd"
+                fi
+
+                if [ -z "$boot_wim" ]; then
+                    echo "ERROR: Could not find boot.wim or boot.esd in $iso_path"
+                    sleep 5
+                    exit
+                fi
+
+                # Use wimboot to chainload the Windows bootloader
+                if [ "$grub_platform" = "efi" ]; then
+                    linuxefi ($root)/wimboot
+                    initrdefi \
+                        (wloop)/bootmgr       \
+                        (wloop)/Boot/BCD      \
+                        (wloop)/Boot/boot.sdi \
+                        $boot_wim
+                else
+                    linux16 ($root)/wimboot
+                    initrd16 \
+                        (wloop)/bootmgr       \
+                        (wloop)/Boot/BCD      \
+                        (wloop)/Boot/boot.sdi \
+                        $boot_wim
+                fi
+            }
+        fi
+        loopback --delete probewin
+    fi
+done
+
+# LINUX ISO BOOT - Auto Detection
+for isofile in /*.iso; do
+    if [ -f "$isofile" ]; then
+        loopback probeloop ($root)$isofile
+
+        # Skip Windows ISOs (already handled above)
+        if [ -f (probeloop)/bootmgr ] || [ -f (probeloop)/BOOTMGR ]; then
+            loopback --delete probeloop
+            continue
+        fi
+
+        # Ubuntu / Linux Mint / Pop!_OS / Zorin (casper-based)
+        if [ -f (probeloop)/casper/vmlinuz ]; then
+            menuentry "Ubuntu/Mint: $isofile" "$isofile" {
+                set iso_path="$2"
+                loopback loop ($root)$iso_path
+                linux  (loop)/casper/vmlinuz \
+                    boot=casper \
+                    iso-scan/filename=$iso_path \
+                    findiso=$iso_path \
+                    quiet splash \
+                    ---
+                initrd (loop)/casper/initrd
+            }
+
+        # Debian Live / Kali / Parrot / MX Linux (live-boot based)
+        elif [ -f (probeloop)/live/vmlinuz ]; then
+            menuentry "Debian Live: $isofile" "$isofile" {
+                set iso_path="$2"
+                loopback loop ($root)$iso_path
+                linux  (loop)/live/vmlinuz \
+                    boot=live \
+                    findiso=$iso_path \
+                    quiet splash \
+                    ---
+                initrd (loop)/live/initrd.img
+            }
+
+        elif [ -f (probeloop)/live/vmlinuz-amd64 ]; then
+            menuentry "Debian Live (amd64): $isofile" "$isofile" {
+                set iso_path="$2"
+                loopback loop ($root)$iso_path
+                linux  (loop)/live/vmlinuz-amd64 \
+                    boot=live \
+                    findiso=$iso_path \
+                    quiet splash \
+                    ---
+                initrd (loop)/live/initrd.img-amd64
+            }
+
+        # Arch Linux (archiso-based)
+        elif [ -f (probeloop)/arch/boot/x86_64/vmlinuz-linux ]; then
+            menuentry "Arch Linux: $isofile" "$isofile" {
+                set iso_path="$2"
+                loopback loop ($root)$iso_path
+                linux  (loop)/arch/boot/x86_64/vmlinuz-linux \
+                    img_dev=/dev/disk/by-label/OS_PART \
+                    img_loop=$iso_path \
+                    archisodevice=/dev/loop0 \
+                    earlymodules=loop \
+                    quiet
+                initrd (loop)/arch/boot/x86_64/initramfs-linux.img
+            }
+
+        # Manjaro (also archiso-based, slight differences)
+        elif [ -f (probeloop)/boot/x86_64/vmlinuz-linux ]; then
+            menuentry "Manjaro: $isofile" "$isofile" {
+                set iso_path="$2"
+                loopback loop ($root)$iso_path
+                linux  (loop)/boot/x86_64/vmlinuz-linux \
+                    img_dev=/dev/disk/by-label/OS_PART \
+                    img_loop=$iso_path \
+                    earlymodules=loop \
+                    quiet splash
+                initrd (loop)/boot/x86_64/initramfs-linux.img
+            }
+
+        # Fedora / RHEL / CentOS (isolinux-based, vmlinuz in isolinux/)
+        elif [ -f (probeloop)/isolinux/vmlinuz ]; then
+            menuentry "Fedora/RHEL: $isofile" "$isofile" {
+                set iso_path="$2"
+                loopback loop ($root)$iso_path
+                linux  (loop)/isolinux/vmlinuz \
+                    root=live:LABEL=OS_PART \
+                    rd.live.image \
+                    rd.live.check \
+                    iso-scan/filename=$iso_path \
+                    quiet
+                initrd (loop)/isolinux/initrd.img
+            }
+
+        # openSUSE Live
+        elif [ -f (probeloop)/boot/x86_64/loader/linux ]; then
+            menuentry "openSUSE: $isofile" "$isofile" {
+                set iso_path="$2"
+                loopback loop ($root)$iso_path
+                linux  (loop)/boot/x86_64/loader/linux \
+                    root=live:LABEL=OS_PART \
+                    rd.live.image \
+                    iso-scan/filename=$iso_path \
+                    quiet splash
+                initrd (loop)/boot/x86_64/loader/initrd
+            }
+
+        # Gentoo / Calculate Linux (also uses isolinux)
+        elif [ -f (probeloop)/isolinux/gentoo ]; then
+            menuentry "Gentoo: $isofile" "$isofile" {
+                set iso_path="$2"
+                loopback loop ($root)$iso_path
+                linux  (loop)/isolinux/gentoo \
+                    root=/dev/ram0 \
+                    init=/linuxrc \
+                    dokeymap \
+                    looptype=squashfs \
+                    loop=/image.squashfs \
+                    cdroot \
+                    iso-scan/filename=$iso_path
+                initrd (loop)/isolinux/gentoo.igz
+            }
+
+        # Tails (Debian-based but special)
+        elif [ -f (probeloop)/live/vmlinuz2 ]; then
+            menuentry "Tails: $isofile" "$isofile" {
+                set iso_path="$2"
+                loopback loop ($root)$iso_path
+                linux  (loop)/live/vmlinuz2 \
+                    boot=live \
+                    findiso=$iso_path \
+                    apparmor=1 \
+                    security=apparmor \
+                    nopersistent \
+                    noprompt \
+                    quiet splash
+                initrd (loop)/live/initrd2.img
+            }
+
+        # Unknown ISO — skip with a warning entry
+        else
+            menuentry "[Unknown/Unsupported] $isofile" "$isofile" {
+                echo "Cannot auto-detect boot method for: $2"
+                echo "This ISO may require manual grub.cfg configuration."
+                sleep 5
+            }
+        fi
+
+        loopback --delete probeloop
+    fi
+done
 
 
+# UTILITIES
+menuentry "--- Utilities ---" { true }
 
+menuentry "GRUB Command Line" {
+    terminal_input console
+    terminal_output console
+}
 
-def install_grub(target_device)->bool:
-    """
-    Prepares the USB drive with a hybrid GRUB bootloader for multi-ISO booting.
-    
-    This function performs partitioning via sfdisk, formats partitions to 
-    FAT32 and exFAT, and installs GRUB to both the MBR and EFI partitions.
-    
-    Args:
-        target_device: The system path to the disk (e.g., /dev/sdX).
-        
-    Returns:
-        bool: True if the installation succeeded, False otherwise.
-        
-    Raises:
-        subprocess.CalledProcessError: If a system command fails.
-    """
+menuentry "Reboot" {
+    reboot
+}
 
-    # Root and Safety Checks
-    if os.geteuid() != 0:
-        print("ERROR: This script must be run with sudo.")
-        return False
-
-    # Avoid nvme devices or soldered emmc(mmcblk)
-    if "nvme" in target_device  or "mmcblk" in target_device:
-        print(f"Aborting: {target_device} is likely to a system drive.")
-        return False
-
-    # Cleanup to avoid "Device Busy"
-    print(f"--- Cleaning up {target_device} ---")
-    for partition in glob.glob(f"{target_device}*"):
-        subprocess.run(['umount', partition], check=False)
-
-    print(f"--- Wiping all signatures from {target_device} ---")
-    if (
-        target_device
-        and isinstance(target_device, str)
-        and target_device.startswith("/dev/")
-        and os.path.exists(target_device)
-        and stat.S_ISBLK(os.stat(target_device).st_mode)
-    ):
-        subprocess.run(['wipefs', '-a', target_device], check=False)
-        if subprocess.run(['which', 'sgdisk'], capture_output=True).returncode == 0:
-            subprocess.run(['sgdisk', '--zap-all', target_device], check=False)
-    else:
-        pass
-
-    # Partitioning Definition
-    sfdisk_input = f"""
-label: gpt
-device: {target_device}
-unit: sectors
-
-{target_device}1 : start=2048, size=2048, type=21686148-6449-6E6F-7444-6961676F6E61
-{target_device}2 : start=4096, size=204800, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B
-{target_device}3 : start=208896, type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
-    """
-    efi_mount = "/tmp/efi_prepare"
-    data_mount = "/tmp/data_prepare"
-    try:
-        print(f"--- Partitioning {target_device} ---")
-        subprocess.run(['sfdisk', '--wipe=always', '--wipe-partitions=always', target_device], input=sfdisk_input.encode(), check=True)
-        
-        # Determine partition names (handles /dev/sdaX vs /dev/nvme0n1pX)
-        sep = 'p' if 'nvme' in target_device else ''
-        efi_part = f"{target_device}{sep}2"
-        data_part = f"{target_device}{sep}3"
-        
-        # Synchronization of kernel (Addressing the "No such file" error)
-        print("Syncing with kernel...")
-        subprocess.run(["partprobe", target_device], check=False)
-        subprocess.run(["udevadm", "settle"], check=False)
-        subprocess.run(["sync"], check=True)
-        
-        
-        # Wait for device nodes to be created by udev
-        for _ in range(10):
-            if os.path.exists(data_part):
-                break
-            time.sleep(1)
-        else:
-            print(f"Error: {data_part} did not appear. Aborting.")
-            return False
-            
-        # Formatting
-        print(f"--- Formatting {efi_part} and {data_part} ---")
-        subprocess.run(['mkfs.vfat', '-F', '32', '-n', 'EFI', efi_part], check=True)
-        subprocess.run(['mkfs.exfat', '-L', 'OS_PART', data_part], check=True)
-
-        #GRUB Installation
-        os.makedirs(efi_mount, exist_ok=True)
-        subprocess.run(['mount', efi_part, efi_mount], check=True)
-        
-        print("--- Installing GRUB (Legacy + UEFI) ---")
-        subprocess.run(['grub-install', '--target=i386-pc', '--force', '--skip-fs-probe', f'--boot-directory={efi_mount}/boot', target_device], check=True)
-        subprocess.run(['grub-install', '--target=x86_64-efi', f'--efi-directory={efi_mount}', f'--boot-directory={efi_mount}/boot', '--removable', '--no-nvram'], check=True)
-    
-    
-        # Copy grub.cfg
-        cfg_path = None
-        _cfg_candidates = [
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "grub.cfg"),
-            os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "grub.cfg"),
-        ]
-        _appdir = os.environ.get("APPDIR", "")
-        if _appdir:
-            _cfg_candidates.append(os.path.join(_appdir, "usr", "share", "lufus", "grub.cfg"))
-            _cfg_candidates.append(os.path.join(_appdir, "grub.cfg"))
-        _meipass = getattr(sys, "_MEIPASS", None)
-        if _meipass:
-            _cfg_candidates.append(os.path.join(_meipass, "grub.cfg"))
-        for _c in _cfg_candidates:
-            if os.path.exists(_c):
-                cfg_path = _c
-                break
-        if cfg_path is None:
-            print("ERROR: grub.cfg not found.")
-            return False
-        os.makedirs(f"{efi_mount}/boot/grub", exist_ok=True)
-        shutil.copy(cfg_path, f"{efi_mount}/boot/grub/grub.cfg")
-
-        # Download wimboot
-        os.makedirs(data_mount, exist_ok=True)
-        subprocess.run(['mount', data_part, data_mount], check=True)
-        download_wimboot(f"{data_mount}/wimboot")
-        subprocess.run(['umount', data_mount], check=True)  
-
-        
-        subprocess.run(['umount', efi_mount], check=True)
-        print("\nSUCCESS: USB is ready. Copy .iso files to 'OS_PART'.")
-        return True
-        
-        
-    except (subprocess.CalledProcessError, FileNotFoundError) as e:
-            print(f"\nCommand failed: {e}")
-            subprocess.run(['umount', efi_mount], check=False)  # cleanup on failure
-            subprocess.run(['umount', data_mount], check=False)
-            return False    
-        
-
-
-
-# this part is for testing the script
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: sudo python3 script.py /dev/sdX")
-    else:
-        if install_grub(sys.argv[1]):
-            sys.exit(0)
-        else:
-            sys.exit(1)
+menuentry "Shutdown" {
+    halt
+}
