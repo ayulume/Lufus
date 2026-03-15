@@ -73,7 +73,12 @@ def install_grub(target_device)->bool:
     print(f"--- Cleaning up {target_device} ---")
     for partition in glob.glob(f"{target_device}*"):
         subprocess.run(['umount', partition], check=False)
-        
+
+    print(f"--- Wiping all signatures from {target_device} ---")
+    subprocess.run(['wipefs', '-a', target_device], check=False)
+    if subprocess.run(['which', 'sgdisk'], capture_output=True).returncode == 0:
+        subprocess.run(['sgdisk', '--zap-all', target_device], check=False)
+
     # Partitioning Definition
     sfdisk_input = f"""
 label: gpt
@@ -88,7 +93,7 @@ unit: sectors
     data_mount = "/tmp/data_prepare"
     try:
         print(f"--- Partitioning {target_device} ---")
-        subprocess.run(['sfdisk', target_device], input=sfdisk_input.encode(), check=True)
+        subprocess.run(['sfdisk', '--wipe=always', '--wipe-partitions=always', target_device], input=sfdisk_input.encode(), check=True)
         
         # Determine partition names (handles /dev/sdaX vs /dev/nvme0n1pX)
         sep = 'p' if 'nvme' in target_device else ''
@@ -121,17 +126,32 @@ unit: sectors
         subprocess.run(['mount', efi_part, efi_mount], check=True)
         
         print("--- Installing GRUB (Legacy + UEFI) ---")
-        subprocess.run(['grub-install', '--target=i386-pc', f'--boot-directory={efi_mount}/boot', target_device], check=True)
-        subprocess.run(['grub-install', '--target=x86_64-efi', f'--efi-directory={efi_mount}', f'--boot-directory={efi_mount}/boot', '--removable'], check=True)
+        subprocess.run(['grub-install', '--target=i386-pc', '--force', '--skip-fs-probe', f'--boot-directory={efi_mount}/boot', target_device], check=True)
+        subprocess.run(['grub-install', '--target=x86_64-efi', f'--efi-directory={efi_mount}', f'--boot-directory={efi_mount}/boot', '--removable', '--no-nvram'], check=True)
     
     
         # Copy grub.cfg
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        cfg_path = os.path.join(script_dir, "grub.cfg")
-        if not os.path.exists(cfg_path):
-            print("ERROR: grub.cfg not found next to the script.")
+        cfg_path = None
+        _cfg_candidates = [
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "grub.cfg"),
+            os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), "grub.cfg"),
+        ]
+        _appdir = os.environ.get("APPDIR", "")
+        if _appdir:
+            _cfg_candidates.append(os.path.join(_appdir, "usr", "share", "lufus", "grub.cfg"))
+            _cfg_candidates.append(os.path.join(_appdir, "grub.cfg"))
+        _meipass = getattr(sys, "_MEIPASS", None)
+        if _meipass:
+            _cfg_candidates.append(os.path.join(_meipass, "grub.cfg"))
+        for _c in _cfg_candidates:
+            if os.path.exists(_c):
+                cfg_path = _c
+                break
+        if cfg_path is None:
+            print("ERROR: grub.cfg not found.")
             return False
-        shutil.copy(os.path.join(script_dir, "grub.cfg"), f"{efi_mount}/boot/grub/grub.cfg")
+        os.makedirs(f"{efi_mount}/boot/grub", exist_ok=True)
+        shutil.copy(cfg_path, f"{efi_mount}/boot/grub/grub.cfg")
 
         # Download wimboot
         os.makedirs(data_mount, exist_ok=True)
