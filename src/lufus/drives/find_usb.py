@@ -3,6 +3,9 @@ import os
 import subprocess
 import getpass
 from lufus.drives import states
+from lufus.lufus_logging import get_logger
+
+log = get_logger(__name__)
 
 
 def _media_directories() -> list:
@@ -25,9 +28,9 @@ def _media_directories() -> list:
                         seen.add(full)
                         directories.append(full)
             except PermissionError:
-                print(f"Permission denied accessing {path}")
+                log.warning("Permission denied accessing %s", path)
             except Exception as err:
-                print(f"Error accessing {path}: {err}")
+                log.error("Error accessing %s: %s", path, err)
     return directories
 
 
@@ -55,11 +58,11 @@ def find_usb() -> dict:
                 if not label:
                     label = os.path.basename(mount_path)
                 usbdict[mount_path] = label
-                print(f"Found USB: {mount_path} -> {label}")
+                log.info("Found USB: %s -> %s", mount_path, label)
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
                 label = os.path.basename(mount_path)
                 usbdict[mount_path] = label
-                print(f"Found USB: {mount_path} -> {label}")
+                log.info("Found USB: %s -> %s", mount_path, label)
 
     return usbdict
 
@@ -76,6 +79,8 @@ def find_DN() -> str | None:
         device_node = part.device
         if device_node:
             states.DN = device_node
+            log.info("find_DN: resolved device node %s", device_node)
             return device_node
 
+    log.warning("find_DN: no USB device node found")
     return None
