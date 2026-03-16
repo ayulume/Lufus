@@ -93,180 +93,184 @@ def flash_windows(device: str, iso: str, progress_cb=None, status_cb=None) -> bo
     except OSError as e:
         _status(f"flash_windows: cannot read ISO file: {e}")
         return False
+
     _status(
         f"flash_windows: ISO size = {iso_size:,} bytes ({iso_size / (1024**3):.2f} GiB)"
     )
 
-    with (
-        tempfile.TemporaryDirectory() as mount_efi,
-        tempfile.TemporaryDirectory() as mount_data,
-        tempfile.TemporaryDirectory() as host_extract,
-    ):
+    try:
+        with (
+            tempfile.TemporaryDirectory() as mount_efi,
+            tempfile.TemporaryDirectory() as mount_data,
+            tempfile.TemporaryDirectory() as host_extract,
+        ):
+            _status(
+                f"flash_windows: temp dirs -> EFI mount={mount_efi}, data mount={mount_data}, extract={host_extract}"
+            )
 
-        _status(
-            f"flash_windows: temp dirs -> EFI mount={mount_efi}, data mount={mount_data}, extract={host_extract}"
-        )
+            _status(f"Wiping existing partition table on {device}...")
+            run(["sudo", "wipefs", "-a", device])
+            _emit(8)
 
-        _status(f"Wiping existing partition table on {device}...")
-        run(["sudo", "wipefs", "-a", device])
-        _emit(8)
+            p_prefix = "p" if "nvme" in device or "mmcblk" in device else ""
+            efi = f"{device}{p_prefix}1"
+            data = f"{device}{p_prefix}2"
 
-        # Handle partition naming for NVMe/MMC vs SATA/USB
-        p_prefix = "p" if "nvme" in device or "mmcblk" in device else ""
-        efi = f"{device}{p_prefix}1"
-        data = f"{device}{p_prefix}2"
-
-        scheme = getattr(states, "partition_scheme", 0)  # 0=GPT, 1=MBR
-        if scheme == 0:
-            sfdisk_script = f"""label: gpt
+            scheme = getattr(states, "partition_scheme", 0)
+            if scheme == 0:
+                sfdisk_script = f"""label: gpt
 device: {device}
 {efi} : size=512M, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B
 {data} : type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
 """
-            scheme_name = "GPT"
-        else:
-            sfdisk_script = f"""label: dos
+                scheme_name = "GPT"
+            else:
+                sfdisk_script = f"""label: dos
 device: {device}
 {efi} : size=512M, type=ef, bootable
 {data} : type=7
 """
-            scheme_name = "MBR"
+                scheme_name = "MBR"
 
-        _status(
-            f"Writing {scheme_name} partition table to {device}: 512MiB EFI (FAT32) + remainder data (NTFS)..."
-        )
-        subprocess.run(
-            ["sudo", "sfdisk", device], input=sfdisk_script.encode(), check=True
-        )
-        run(["sudo", "partprobe", device])
-        _status("partprobe notified kernel of new partition table")
-        run(["sudo", "udevadm", "settle"])
-        _status("udevadm settled")
-        _emit(15)
+            _status(
+                f"Writing {scheme_name} partition table to {device}: 512MiB EFI (FAT32) + remainder data (NTFS)..."
+            )
+            subprocess.run(
+                ["sudo", "sfdisk", device], input=sfdisk_script.encode(), check=True
+            )
+            run(["sudo", "partprobe", device])
+            _status("partprobe notified kernel of new partition table")
+            run(["sudo", "udevadm", "settle"])
+            _status("udevadm settled")
+            _emit(15)
 
-        _status(f"Partitions: EFI={efi}, data={data}")
+            _status(f"Partitions: EFI={efi}, data={data}")
 
-        _status(f"Formatting {efi} as FAT32 with label BOOT...")
-        run(["sudo", "mkfs.vfat", "-F32", "-n", "BOOT", efi])
-        _status(f"Formatting {data} as NTFS with label WINDOWS...")
-        ntfs_cmd = None
-        for candidate in ["mkfs.ntfs", "mkntfs"]:
-            if subprocess.run(["which", candidate], capture_output=True).returncode == 0:
-                ntfs_cmd = candidate
-                break
-        if ntfs_cmd is None:
-            _status("ntfs-3g not found, attempting to install...")
-            pkg_managers = [
-                ["apt-get", "install", "-y", "ntfs-3g"],
-                ["dnf", "install", "-y", "ntfs-3g"],
-                ["pacman", "-S", "--noconfirm", "ntfs-3g"],
-                ["zypper", "install", "-y", "ntfs-3g"],
-            ]
-            for pm_cmd in pkg_managers:
-                if subprocess.run(["which", pm_cmd[0]], capture_output=True).returncode == 0:
-                    subprocess.run(["sudo"] + pm_cmd, check=True)
-                    break
+            _status(f"Formatting {efi} as FAT32 with label BOOT...")
+            run(["sudo", "mkfs.vfat", "-F32", "-n", "BOOT", efi])
+            _status(f"Formatting {data} as NTFS with label WINDOWS...")
+            ntfs_cmd = None
             for candidate in ["mkfs.ntfs", "mkntfs"]:
                 if subprocess.run(["which", candidate], capture_output=True).returncode == 0:
                     ntfs_cmd = candidate
                     break
-        if ntfs_cmd is None:
-            raise FileNotFoundError("mkfs.ntfs / mkntfs not found. Install ntfs-3g: sudo pacman -S ntfs-3g")
-        run(["sudo", ntfs_cmd, "-f", "-L", "WINDOWS", data])
-        _emit(22)
-
-        _status(f"Mounting {efi} -> {mount_efi}")
-        run(["sudo", "mount", efi, mount_efi])
-        _status(f"Mounting {data} -> {mount_data}")
-        run(["sudo", "mount", data, mount_data])
-
-        try:
-            if subprocess.run(["which", "7z"], capture_output=True).returncode != 0:
-                _status("7z not found, attempting to install...")
+            if ntfs_cmd is None:
+                _status("ntfs-3g not found, attempting to install...")
                 pkg_managers = [
-                    ["apt-get", "install", "-y", "p7zip-full"],
-                    ["dnf", "install", "-y", "p7zip-plugins"],
-                    ["pacman", "-S", "--noconfirm", "p7zip"],
-                    ["zypper", "install", "-y", "p7zip-full"],
+                    ["apt-get", "install", "-y", "ntfs-3g"],
+                    ["dnf", "install", "-y", "ntfs-3g"],
+                    ["pacman", "-S", "--noconfirm", "ntfs-3g"],
+                    ["zypper", "install", "-y", "ntfs-3g"],
                 ]
                 for pm_cmd in pkg_managers:
                     if subprocess.run(["which", pm_cmd[0]], capture_output=True).returncode == 0:
                         subprocess.run(["sudo"] + pm_cmd, check=True)
                         break
+                for candidate in ["mkfs.ntfs", "mkntfs"]:
+                    if subprocess.run(["which", candidate], capture_output=True).returncode == 0:
+                        ntfs_cmd = candidate
+                        break
+            if ntfs_cmd is None:
+                raise FileNotFoundError("mkfs.ntfs / mkntfs not found. Install ntfs-3g: sudo pacman -S ntfs-3g")
+            run(["sudo", ntfs_cmd, "-f", "-L", "WINDOWS", data])
+            _emit(22)
+
+            _status(f"Mounting {efi} -> {mount_efi}")
+            run(["sudo", "mount", efi, mount_efi])
+            _status(f"Mounting {data} -> {mount_data}")
+            run(["sudo", "mount", data, mount_data])
+
+            try:
                 if subprocess.run(["which", "7z"], capture_output=True).returncode != 0:
-                    raise FileNotFoundError("7z not found. Install p7zip: sudo pacman -S p7zip")
-            _status(f"Extracting ISO {iso} to {host_extract} with 7z...")
-            run(["7z", "x", iso, f"-o{host_extract}", "-y"])
-            extracted = os.listdir(host_extract)
-            _status(
-                f"Extraction complete: {len(extracted)} top-level items: {extracted}"
-            )
-            _emit(60)
-
-            _status(f"Copying {len(extracted)} items to data partition {mount_data}...")
-            items = [os.path.join(host_extract, i) for i in extracted]
-            run(["sudo", "cp", "-r"] + items + [mount_data])
-            _emit(75)
-
-            wim_size = _get_wim_size(mount_data)
-            _status(
-                f"install.wim/esd on data partition: {wim_size / (1024**3):.2f} GiB"
-            )
-
-            _status("Copying EFI boot files to EFI partition...")
-            efi_src = _find_path_case_insensitive(host_extract, "EFI")
-            if efi_src:
-                efi_items = os.listdir(efi_src)
+                    _status("7z not found, attempting to install...")
+                    pkg_managers = [
+                        ["apt-get", "install", "-y", "p7zip-full"],
+                        ["dnf", "install", "-y", "p7zip-plugins"],
+                        ["pacman", "-S", "--noconfirm", "p7zip"],
+                        ["zypper", "install", "-y", "p7zip-full"],
+                    ]
+                    for pm_cmd in pkg_managers:
+                        if subprocess.run(["which", pm_cmd[0]], capture_output=True).returncode == 0:
+                            subprocess.run(["sudo"] + pm_cmd, check=True)
+                            break
+                    if subprocess.run(["which", "7z"], capture_output=True).returncode != 0:
+                        raise FileNotFoundError("7z not found. Install p7zip: sudo pacman -S p7zip")
+                _status(f"Extracting ISO {iso} to {host_extract} with 7z...")
+                run(["7z", "x", iso, f"-o{host_extract}", "-y"])
+                extracted = os.listdir(host_extract)
                 _status(
-                    f"Found EFI/ directory with {len(efi_items)} items: {efi_items}"
+                    f"Extraction complete: {len(extracted)} top-level items: {extracted}"
                 )
-                run(
-                    ["sudo", "cp", "-r"]
-                    + [os.path.join(efi_src, i) for i in efi_items]
-                    + [mount_efi]
-                )
-                _status("Copied EFI/ tree to EFI partition")
-            else:
+                _emit(60)
+
+                _status(f"Copying {len(extracted)} items to data partition {mount_data}...")
+                items = [os.path.join(host_extract, i) for i in extracted]
+                run(["sudo", "cp", "-r"] + items + [mount_data])
+                _emit(75)
+
+                wim_size = _get_wim_size(mount_data)
                 _status(
-                    "WARNING: No EFI directory found in ISO - drive may not be UEFI bootable"
+                    f"install.wim/esd on data partition: {wim_size / (1024**3):.2f} GiB"
                 )
 
-            boot_src = _find_path_case_insensitive(host_extract, "boot")
-            if boot_src:
-                boot_items = os.listdir(boot_src)
-                _status(f"Found boot/ directory with {len(boot_items)} items")
-                run(
-                    ["sudo", "cp", "-r"]
-                    + [os.path.join(boot_src, i) for i in boot_items]
-                    + [mount_efi]
-                )
-                _status("Copied boot/ tree to EFI partition")
-            else:
-                _status("No boot/ directory found in ISO extract")
-
-            for fname in ["bootmgr", "bootmgr.efi"]:
-                src = _find_path_case_insensitive(host_extract, fname)
-                if src:
-                    run(["sudo", "cp", src, f"{mount_efi}/{fname}"])
-                    _status(f"Copied {fname} to EFI partition root")
+                _status("Copying EFI boot files to EFI partition...")
+                efi_src = _find_path_case_insensitive(host_extract, "EFI")
+                if efi_src:
+                    efi_items = os.listdir(efi_src)
+                    _status(
+                        f"Found EFI/ directory with {len(efi_items)} items: {efi_items}"
+                    )
+                    run(
+                        ["sudo", "cp", "-r"]
+                        + [os.path.join(efi_src, i) for i in efi_items]
+                        + [mount_efi]
+                    )
+                    _status("Copied EFI/ tree to EFI partition")
                 else:
-                    _status(f"{fname} not found in ISO extract (may be fine)")
+                    _status(
+                        "WARNING: No EFI directory found in ISO - drive may not be UEFI bootable"
+                    )
 
-            _fix_efi_bootloader(mount_efi)
-            _emit(88)
+                boot_src = _find_path_case_insensitive(host_extract, "boot")
+                if boot_src:
+                    boot_items = os.listdir(boot_src)
+                    _status(f"Found boot/ directory with {len(boot_items)} items")
+                    run(
+                        ["sudo", "cp", "-r"]
+                        + [os.path.join(boot_src, i) for i in boot_items]
+                        + [mount_efi]
+                    )
+                    _status("Copied boot/ tree to EFI partition")
+                else:
+                    _status("No boot/ directory found in ISO extract")
 
-            _status("Syncing all writes to disk (this may take a moment)...")
-            run(["sudo", "sync"])
-            _emit(97)
-            _status("Sync complete")
-        except Exception as e:
-            _status(f"flash_windows: ERROR - {type(e).__name__}: {e}")
-            raise
-        finally:
-            _status(f"Unmounting {mount_efi} and {mount_data}...")
-            subprocess.run(["sudo", "umount", mount_efi], capture_output=True)
-            subprocess.run(["sudo", "umount", mount_data], capture_output=True)
-            _status("Unmount complete")
+                for fname in ["bootmgr", "bootmgr.efi"]:
+                    src = _find_path_case_insensitive(host_extract, fname)
+                    if src:
+                        run(["sudo", "cp", src, f"{mount_efi}/{fname}"])
+                        _status(f"Copied {fname} to EFI partition root")
+                    else:
+                        _status(f"{fname} not found in ISO extract (may be fine)")
 
-        _status("flash_windows: finished successfully, Windows USB is ready")
-        return True
+                _fix_efi_bootloader(mount_efi)
+                _emit(88)
+
+                _status("Syncing all writes to disk (this may take a moment)...")
+                run(["sudo", "sync"])
+                _emit(97)
+                _status("Sync complete")
+            except Exception as e:
+                _status(f"flash_windows: ERROR - {type(e).__name__}: {e}")
+                raise
+            finally:
+                _status(f"Unmounting {mount_efi} and {mount_data}...")
+                subprocess.run(["sudo", "umount", mount_efi], capture_output=True)
+                subprocess.run(["sudo", "umount", mount_data], capture_output=True)
+                _status("Unmount complete")
+
+            _status("flash_windows: finished successfully, Windows USB is ready")
+            return True
+
+    except (OSError, subprocess.CalledProcessError) as e:
+        _status(f"flash_windows: failed: {e}")
+        return False
