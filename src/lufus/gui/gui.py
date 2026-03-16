@@ -330,26 +330,25 @@ class AboutWindow(QDialog):
 
 class SettingsDialog(QDialog):
     language_changed = pyqtSignal(str)
+    theme_changed = pyqtSignal(str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._T = parent._T if parent else {}
         self._S: Scale = parent._S if parent else None
         self.setWindowTitle(self._T.get("settings_window_title", "Settings"))
-
         if self._S:
             self.setFixedSize(self._S.px(650), self._S.px(450))
         else:
             self.setFixedSize(650, 450)
-
         m = self._S.px(20) if self._S else 20
         layout = QVBoxLayout()
         layout.setContentsMargins(m, m, m, m)
         layout.setSpacing(self._S.px(10) if self._S else 10)
 
+        # Language
         lbl_lang = QLabel(self._T.get("settings_label_language", "Language"))
         lbl_lang.setStyleSheet("font-weight: normal;")
-
         self.combo_language = QComboBox()
         languages = self._detect_languages()
         if languages:
@@ -360,21 +359,37 @@ class SettingsDialog(QDialog):
         else:
             self.combo_language.addItem(self._T.get("settings_no_languages", "No languages found"))
             self.combo_language.setEnabled(False)
-
         layout.addWidget(lbl_lang)
         layout.addWidget(self.combo_language)
-        layout.addStretch()
 
+        # Theme
+        lbl_theme = QLabel(self._T.get("settings_label_theme", "Theme"))
+        lbl_theme.setStyleSheet("font-weight: normal;")
+        self.combo_theme = QComboBox()
+        builtin, custom = self._detect_themes()
+        self.combo_theme.addItems(builtin)
+        self.combo_theme.addItems(custom)
+        current_theme = getattr(states, "Theme", "Default")
+        for i in range(self.combo_theme.count()):
+            if self.combo_theme.itemText(i) == current_theme:
+                self.combo_theme.setCurrentIndex(i)
+                break
+        layout.addWidget(lbl_theme)
+        layout.addWidget(self.combo_theme)
+
+        layout.addStretch()
         btn_ok = QPushButton("OK")
         btn_ok.clicked.connect(self._on_ok_clicked)
         layout.addWidget(btn_ok)
-
         self.setLayout(layout)
 
     def _on_ok_clicked(self):
         language = self.combo_language.currentText()
         if language != "No languages found":
             self.language_changed.emit(language)
+        theme = self.combo_theme.currentText()
+        if not theme.startswith("──"):
+            self.theme_changed.emit(theme)
         self.accept()
 
     @staticmethod
@@ -383,6 +398,20 @@ class SettingsDialog(QDialog):
         if lang_dir is None:
             return []
         return sorted(p.stem for p in lang_dir.glob("*.csv"))
+
+    @staticmethod
+    def _detect_themes():
+        builtin = sorted(
+            p.stem.replace('_theme', '')
+            for p in THEME_DIR.glob('*_theme.json')
+        )
+        user_themes_dir = Path(user_config_dir("Lufus")) / "themes"
+        user_themes_dir.mkdir(parents=True, exist_ok=True)
+        custom = sorted(
+            p.stem.replace('_theme', '')
+            for p in user_themes_dir.glob('*_theme.json')
+        )
+        return builtin, custom
 
 
 class VerifyWorker(QThread):
@@ -609,30 +638,6 @@ class lufus(QMainWindow):
     def on_usb_added(self, node):
         self.log_message(f"USB device connected: {node}")
         self.notifier.show(f"✓ {node} connected", notification_type="success", duration=3000)
-
-
-    def create_refresh_button(self):
-        S = self._S
-        size = S.px(25)
-        btn = QToolButton()
-        btn.setText("🔄")
-        btn.setToolTip(self._T.get("tooltip_refresh", "Refresh"))
-        btn.setStyleSheet(f"""
-            QToolButton {{
-                border: 1px solid palette(mid);
-                background-color: palette(button);
-                font-size: {S.pt(13)}pt;
-                max-height: {size}px;
-                min-height: {size}px;
-                max-width:  {size}px;
-                min-width:  {size}px;
-            }}
-            QToolButton:hover  {{ background-color: palette(highlight); border-color: palette(highlight); color: palette(highlighted-text); }}
-            QToolButton:pressed {{ background-color: palette(dark); }}
-        """)
-        btn.clicked.connect(self.refresh_usb_devices)
-        return btn
-
 
     def init_ui(self):
         S = self._S
@@ -902,6 +907,15 @@ class lufus(QMainWindow):
         self.setStatusBar(self.statusBar)
         self.statusBar.showMessage(self._T.get("status_ready", "Ready"), 0)
 
+    def create_refresh_button(self):
+        S = self._S
+        size = S.px(25)
+        btn = QToolButton()
+        btn.setText("🔄")
+        btn.setToolTip(self._T.get("tooltip_refresh", "Refresh"))
+        btn.setFixedSize(size, size)
+        btn.clicked.connect(self.refresh_usb_devices)
+        return btn
 
     def _populate_device_combo(self):
         self.combo_device.blockSignals(True)
@@ -1148,7 +1162,26 @@ class lufus(QMainWindow):
     def show_settings(self):
         dlg = SettingsDialog(self)
         dlg.language_changed.connect(self.apply_language)
+        dlg.theme_changed.connect(self.apply_theme)
         dlg.exec()
+
+    def apply_theme(self, theme_name):
+        import shutil
+        builtin_path = THEME_DIR / f'{theme_name}_theme.json'
+        user_themes_dir = Path(user_config_dir("Lufus")) / "themes"
+        user_path = user_themes_dir / f'{theme_name}_theme.json'
+        dst = Path(user_config_dir("Lufus")) / 'user_theme.json'
+        src = builtin_path if builtin_path.exists() else user_path
+        if src.exists():
+            shutil.copy(src, dst)
+            sudo_dst = Path("/root/.config/Lufus/user_theme.json")
+            try:
+                shutil.copy(src, sudo_dst)
+            except Exception:
+                pass
+            states.theme = theme_name
+            self._apply_styles()
+            self.log_message(f"Theme changed to: {theme_name}")
 
     def apply_language(self, language):
         self.current_language = language
@@ -1479,7 +1512,6 @@ if __name__ == "__main__":
     )
 
     app = QApplication(sys.argv)
-    app.setStyle("Fusion")
 
     usb_devices = {}
     # Only try to parse usb_devices JSON when the arg is not a known flag

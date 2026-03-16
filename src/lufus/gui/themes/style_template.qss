@@ -25,11 +25,14 @@ QComboBox, QLineEdit {{
     border: 1px solid {colors_border_light};
     border-radius: {dimensions_combo_radius}px;
     padding: {dimensions_combo_pad_vertical}px {dimensions_combo_pad_horizontal}px;
-    background-color: {colors_input_bg};
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 {colors_input_bg_top},
+        stop:1 {colors_input_bg});
     min-height: {dimensions_combo_height}px;
     font-size: {fonts_base}pt;
+    color: {colors_fg};
     selection-background-color: {colors_accent};
-    selection-color: {colors_selected_text}; /* optional */
+    selection-color: {colors_selected_text};
 }}
 
 QComboBox:focus, QLineEdit:focus {{
@@ -49,10 +52,27 @@ QComboBox QAbstractItemView {{
     color: {colors_fg};
     selection-background-color: {colors_accent};
     selection-color: {colors_selected_text};
+    outline: none;
+    padding: 0px;
+    margin: 0px;
+}}
+
+QComboBox QAbstractItemView,
+QComboBox QAbstractItemView QWidget,
+QComboBox * {{
+    background-color: {colors_input_bg};
+    color: {colors_fg};
+}}
+
+QComboBox QFrame {{
+    background-color: {colors_input_bg};
+    border: none;
 }}
 
 QPushButton {{
-    background-color: {colors_button_bg};
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 {colors_button_bg_top},
+        stop:1 {colors_button_bg});
     border: 1px solid {colors_border_dark};
     border-radius: {dimensions_btn_radius}px;
     padding: {dimensions_btn_pad_vertical}px {dimensions_btn_pad_horizontal}px;
@@ -63,7 +83,9 @@ QPushButton {{
 }}
 
 QPushButton:hover {{
-    background-color: {colors_button_hover_bg};
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 {colors_button_hover_bg_top},
+        stop:1 {colors_button_hover_bg});
     border-color: {colors_accent};
 }}
 
@@ -78,7 +100,9 @@ QPushButton:disabled {{
 }}
 
 #btnStart {{
-    background-color: {colors_button_bg};
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 {colors_button_bg_top},
+        stop:1 {colors_button_bg});
     border: 1px solid {colors_border_dark};
     border-radius: {dimensions_btn_radius}px;
     min-height: {dimensions_btn_min_height}px;
@@ -89,7 +113,9 @@ QPushButton:disabled {{
 }}
 
 #btnStart:hover {{
-    background-color: {colors_button_hover_bg};
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 {colors_button_hover_bg_top},
+        stop:1 {colors_button_hover_bg});
     border-color: {colors_accent};
 }}
 
@@ -129,7 +155,7 @@ QCheckBox::indicator:unchecked:hover {{
 }}
 
 QCheckBox::indicator:checked:hover {{
-    background-color: {colors_accent_hover}; /* optional */
+    background-color: {colors_accent_hover};
 }}
 
 QCheckBox::indicator:disabled {{
@@ -155,7 +181,9 @@ QProgressBar::chunk {{
 
 QToolButton {{
     border: 1px solid {colors_border_light};
-    background-color: {colors_tool_button_bg};
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 {colors_tool_button_bg_top},
+        stop:1 {colors_tool_button_bg});
     border-radius: {dimensions_tool_border_radius}px;
     padding: {dimensions_tool_padding}px;
     min-width:  {dimensions_tool_size}px;
@@ -199,7 +227,6 @@ QLabel#linkLabel:hover {{
     text-decoration: underline;
 }}
 
-/* Optional: scrollbar styling – add if your app uses them */
 QScrollBar:vertical {{
     background: {colors_input_bg};
     width: 14px;
