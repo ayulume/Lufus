@@ -54,18 +54,18 @@ pyinstaller "$MAIN_SCRIPT" \
     --noconfirm
 
 # ===== DEBUG: Show bundle structure =====
-echo "=== Bundle Contents ==="
-if command -v tree &> /dev/null; then
-    tree -L 4 dist/lufus/
-else
-    echo "dist/lufus/ top level:"
-    ls -la dist/lufus/
-    echo "dist/lufus/_internal/ :"
-    ls -la dist/lufus/_internal/
-    echo "Searching for lufus modules:"
-    find dist/lufus -name "*.pyc" | head -20
-fi
-echo "========================"
+#echo "=== Bundle Contents ==="
+#if command -v tree &> /dev/null; then
+#    tree -L 4 dist/lufus/
+#else
+#    echo "dist/lufus/ top level:"
+#    ls -la dist/lufus/
+#    echo "dist/lufus/_internal/ :"
+#    ls -la dist/lufus/_internal/
+#    echo "Searching for lufus modules:"
+#    find dist/lufus -name "*.pyc" | head -20
+#fi
+#echo "========================"
 
 # ===== Locate gui module =====
 GUI_LOCATION=$(find dist/lufus -type d -name "gui" 2>/dev/null | head -1)

@@ -707,7 +707,7 @@ class lufus(QMainWindow):
         self.combo_image_option.addItem(self._T.get("combo_image_linux", "Linux"))
         self.combo_image_option.addItem(self._T.get("combo_image_other", "Other"))
         self.combo_image_option.addItem(self._T.get("combo_image_format", "Format Only"))
-        self.combo_image_option.addItem(self._T.get("combo_image_ventoy", "Ventoy"))
+        #self.combo_image_option.addItem(self._T.get("combo_image_ventoy", "Ventoy"))
         self.combo_image_option.currentTextChanged.connect(self.update_image_option)
 
         image_layout = QVBoxLayout()
@@ -774,7 +774,7 @@ class lufus(QMainWindow):
         self.combo_flash = QComboBox()
         self.all_flash_options = [
             self._T.get("combo_flash_iso",    "ISO"),
-            self._T.get("combo_flash_ventoy", "Ventoy"),
+            #self._T.get("combo_flash_ventoy", "Ventoy"),
             self._T.get("combo_flash_dd",     "DD"),
         ]
         self.combo_flash.addItems(self.all_flash_options)
@@ -1211,7 +1211,7 @@ class lufus(QMainWindow):
         self.combo_image_option.addItem(self._T.get("combo_image_linux", "Linux"))
         self.combo_image_option.addItem(self._T.get("combo_image_other", "Other"))
         self.combo_image_option.addItem(self._T.get("combo_image_format", "Format Only"))
-        self.combo_image_option.addItem(self._T.get("combo_image_ventoy", "Ventoy"))
+        #self.combo_image_option.addItem(self._T.get("combo_image_ventoy", "Ventoy"))
         self.combo_image_option.setCurrentIndex(current_img_idx)
         self.combo_image_option.blockSignals(False)
 

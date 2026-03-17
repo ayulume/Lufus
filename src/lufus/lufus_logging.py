@@ -4,13 +4,12 @@ import sys
 import os
 import atexit
 
-LOG_FILE = "/tmp/lufus.log"
+LOG_FILE = os.path.join(os.path.expanduser("~"), ".local", "share", "lufus", "lufus.log")
 
 _YELLOW = "\033[33m"
 _RED    = "\033[31m"
 _BOLD   = "\033[1m"
 _RESET  = "\033[0m"
-
 _FMT     = "%(asctime)s [%(levelname)-8s] %(name)s: %(message)s"
 _DATEFMT = "%Y-%m-%d %H:%M:%S"
 
@@ -33,6 +32,8 @@ def setup_logging() -> None:
         return
     _setup_done = True
 
+    os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+
     root = logging.getLogger("lufus")
     root.setLevel(logging.DEBUG)
 
@@ -54,13 +55,14 @@ def setup_logging() -> None:
         if issubclass(exc_type, KeyboardInterrupt):
             sys.__excepthook__(exc_type, exc_value, exc_tb)
             return
-        root.critical("Unhandled exception — process is about to crash",
-                      exc_info=(exc_type, exc_value, exc_tb))
+        root.critical(
+            "Unhandled exception — process is about to crash",
+            exc_info=(exc_type, exc_value, exc_tb),
+        )
         fh.flush()
 
     sys.excepthook = _crash_hook
     atexit.register(fh.flush)
-
     root.debug("Logging initialised — log file: %s", LOG_FILE)
 
 
