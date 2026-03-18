@@ -434,6 +434,7 @@ def winlocalacc():
         "save\n"
         "exit\n"
     ]
+    cmd_string = "\n".join(commands) + "\n"
     log.info("winlocalacc: bypassing online account requirement at %s...", mount)
     try:
         #creates temporary mount point for the windows iso
@@ -441,7 +442,7 @@ def winlocalacc():
         #mounts the boot.wim file using wimlib
         subprocess.run(['wimmountrw', f'{mount}/sources/boot.wim', '2', '/media/tempwinmnt'], check=True)
         #using chntpw to edit the registry file SOFTWARE and then also run the commands using stdin
-        subprocess.run(['chntpw', 'e', '/media/tempwinmnt/Windows/System32/config/SOFTWARE'], input=commands, text=True, capture_output=True, check=True)
+        subprocess.run(['chntpw', 'e', '/media/tempwinmnt/Windows/System32/config/SOFTWARE'], input=cmd_string, text=True, capture_output=True, check=True)
         subprocess.run(['wimunmount', '/media/tempwinmnt', '--commit'], check=True)
         subprocess.run(['rm', '-rf', '/media/tempwinmnt'], check=True)
         log.info("winlocalacc: online account bypass applied successfully.")
@@ -492,7 +493,7 @@ def winlocalaccname():
                             <Description>Primary Local Account</Description>
                             <DisplayName>{user_name}</DisplayName>
                             <Group>Administrators</Group>
-                            <n>{user_name}</n>
+                            <Name>{user_name}</Name>
                         </LocalAccount>
                     </LocalAccounts>
                 </UserAccounts>
