@@ -475,7 +475,7 @@ class SettingsDialog(QDialog):
 class VerifyWorker(QThread):
     # worker thread for sha256 verification :D
     progress = pyqtSignal(str)
-    verify_done = pyqtSignal(bool)
+    flash_done = pyqtSignal(bool)
 
     def __init__(self, iso_path: str, expected_hash: str):
         super().__init__()
@@ -489,10 +489,10 @@ class VerifyWorker(QThread):
             from lufus.writing.check_file_sig import check_sha256
             self.progress.emit(f"Verifying SHA256 checksum for {self.iso_path}...")
             result = check_sha256(self.iso_path, self.expected_hash)
-            self.verify_done.emit(result)
+            self.flash_done.emit(result)
         except Exception as e:
             self.progress.emit(f"Verification error: {str(e)}")
-            self.verify_done.emit(False)
+            self.flash_done.emit(False)
 
 
 class FlashWorker(QThread):
@@ -1630,7 +1630,7 @@ class lufus(QMainWindow):
 
             self.verify_worker = VerifyWorker(states.iso_path, states.expected_hash)
             self.verify_worker.progress.connect(self.log_message)
-            self.verify_worker.verify_done.connect(self.on_verify_finished)
+            self.verify_worker.flash_done.connect(self.on_verify_finished)
             self.verify_worker.start()
         else:
             # skip verification and start flash :3
