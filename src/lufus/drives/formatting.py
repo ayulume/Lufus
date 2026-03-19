@@ -1,5 +1,6 @@
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import os
@@ -9,6 +10,18 @@ from lufus.drives import find_usb as fu
 from lufus.lufus_logging import get_logger
 
 log = get_logger(__name__)
+
+# pkexec strips /sbin and /usr/sbin from PATH so we must search them explicitly
+_TOOL_PATH = "/usr/sbin:/usr/bin:/sbin:/bin"
+
+
+def _find_tool(name: str) -> str:
+    # resolve full path of a system tool, searching sbin dirs pkexec drops
+    found = shutil.which(name, path=_TOOL_PATH)
+    if found:
+        return found
+    log.warning("_find_tool: %s not found in %s, falling back to bare name", name, _TOOL_PATH)
+    return name
 
 
 def _get_raw_device(drive: str) -> str:
@@ -127,10 +140,10 @@ def volumecustomlabel(target_partition: str = None):
     # 0 -> NTFS, 1 -> FAT32, 2 -> exFAT, 3 -> ext4
     fs_type = getattr(states, 'currentFS', 0)
     cmd_map = {
-        0: ["ntfslabel", drive, newlabel],
-        1: ["fatlabel", drive, newlabel],
-        2: ["fatlabel", drive, newlabel],
-        3: ["e2label", drive, newlabel],
+        0: [_find_tool("ntfslabel"), drive, newlabel],
+        1: [_find_tool("fatlabel"), drive, newlabel],
+        2: [_find_tool("fatlabel"), drive, newlabel],
+        3: [_find_tool("e2label"), drive, newlabel],
     }
     cmd = cmd_map.get(fs_type)
     if cmd is None:
@@ -197,7 +210,7 @@ def checkdevicebadblock():
     logical_block_size = 4096
     try:
         probe = subprocess.run(
-            ["blockdev", "--getss", drive],
+            [_find_tool("blockdev"), "--getss", drive],
             capture_output=True,
             text=True,
             check=False,
@@ -223,7 +236,7 @@ def checkdevicebadblock():
 
     # -s = show progress, -v = verbose output
     # -n = non-destructive read-write test (safe default)
-    args = ["badblocks", "-sv", "-b", str(logical_block_size)]
+    args = [_find_tool("badblocks"), "-sv", "-b", str(logical_block_size)]
     if passes > 1:
         args.append("-n")  # non-destructive read-write
     args.append(drive)
@@ -275,6 +288,14 @@ def dskformat(status_cb=None) -> bool:
 
     # Get the raw device (whole disk, not partition)
     raw_device = _get_raw_device(drive)
+    
+    try:
+        _status(f"Unmounting {drive} before formatting...")
+        subprocess.run(["umount", drive], check=True)
+    except subprocess.CalledProcessError:
+        _status(f"WARNING: Failed to unmount {drive}. It may already be unmounted or in use.")
+    except Exception as e:
+        _status(f"WARNING: Unexpected unmount error: {type(e).__name__}: {e}")  
 
     fs_type = getattr(states, 'currentFS', 0)
     clusters = cluster1
@@ -287,7 +308,8 @@ def dskformat(status_cb=None) -> bool:
 
     if fs_type == 0:  # NTFS
         try:
-            cmd = ["mkfs.ntfs", "-c", str(clusters), "-F"]
+            tool = _find_tool("mkfs.ntfs")
+            cmd = [tool, "-c", str(clusters), "-F"]
             if is_quick_format:
                 cmd.append("-Q")
             cmd.append(raw_device)
@@ -295,7 +317,7 @@ def dskformat(status_cb=None) -> bool:
             subprocess.run(cmd, check=True)
             _status(f"Successfully formatted {raw_device} as NTFS.")
         except FileNotFoundError:
-            _status("ERROR: mkfs.ntfs not found. Install ntfs-3g.")
+            _status(f"ERROR: mkfs.ntfs not found. Install ntfs-3g.")
             return False
         except subprocess.CalledProcessError as e:
             _status(f"ERROR: mkfs.ntfs failed (exit {e.returncode}). Is the drive unmounted?")
@@ -306,12 +328,13 @@ def dskformat(status_cb=None) -> bool:
 
     elif fs_type == 1:  # FAT32
         try:
-            cmd = ["mkfs.vfat", "-s", str(sectors), "-F", "32", raw_device]
+            tool = _find_tool("mkfs.vfat")
+            cmd = [tool, "-s", str(sectors), "-F", "32", raw_device]
             _status(f"Running: {' '.join(cmd)}")
             subprocess.run(cmd, check=True)
             _status(f"Successfully formatted {raw_device} as FAT32.")
         except FileNotFoundError:
-            _status("ERROR: mkfs.vfat not found. Install dosfstools.")
+            _status(f"ERROR: mkfs.vfat not found. Install dosfstools.")
             return False
         except subprocess.CalledProcessError as e:
             _status(f"ERROR: mkfs.vfat failed (exit {e.returncode}). Is the drive unmounted?")
@@ -322,12 +345,13 @@ def dskformat(status_cb=None) -> bool:
 
     elif fs_type == 2:  # exFAT
         try:
-            cmd = ["mkfs.exfat", "-b", str(clusters), raw_device]
+            tool = _find_tool("mkfs.exfat")
+            cmd = [tool, "-b", str(clusters), raw_device]
             _status(f"Running: {' '.join(cmd)}")
             subprocess.run(cmd, check=True)
             _status(f"Successfully formatted {raw_device} as exFAT.")
         except FileNotFoundError:
-            _status("ERROR: mkfs.exfat not found. Install exfatprogs or exfat-utils.")
+            _status(f"ERROR: mkfs.exfat not found. Install exfatprogs or exfat-utils.")
             return False
         except subprocess.CalledProcessError as e:
             _status(f"ERROR: mkfs.exfat failed (exit {e.returncode}). Is the drive unmounted?")
@@ -338,12 +362,13 @@ def dskformat(status_cb=None) -> bool:
 
     elif fs_type == 3:  # ext4
         try:
-            cmd = ["mkfs.ext4", "-b", str(clusters), raw_device]
+            tool = _find_tool("mkfs.ext4")
+            cmd = [tool, "-b", str(clusters), raw_device]
             _status(f"Running: {' '.join(cmd)}")
             subprocess.run(cmd, check=True)
             _status(f"Successfully formatted {raw_device} as ext4.")
         except FileNotFoundError:
-            _status("ERROR: mkfs.ext4 not found. Install e2fsprogs.")
+            _status(f"ERROR: mkfs.ext4 not found. Install e2fsprogs.")
             return False
         except subprocess.CalledProcessError as e:
             _status(f"ERROR: mkfs.ext4 failed (exit {e.returncode}). Is the drive unmounted?")
@@ -378,16 +403,16 @@ def _apply_partition_scheme(drive: str):
     try:
         if scheme == 0:
             # GPT — used for UEFI targets
-            subprocess.run(["parted", "-s", raw_device, "mklabel", "gpt"], check=True)
+            subprocess.run([_find_tool("parted"), "-s", raw_device, "mklabel", "gpt"], check=True)
             subprocess.run(
-                ["parted", "-s", raw_device, "mkpart", "primary", "1MiB", "100%"],
+                [_find_tool("parted"), "-s", raw_device, "mkpart", "primary", "1MiB", "100%"],
                 check=True,
             )
         else:
             # MBR — used for BIOS/legacy targets
-            subprocess.run(["parted", "-s", raw_device, "mklabel", "msdos"], check=True)
+            subprocess.run([_find_tool("parted"), "-s", raw_device, "mklabel", "msdos"], check=True)
             subprocess.run(
-                ["parted", "-s", raw_device, "mkpart", "primary", "1MiB", "100%"],
+                [_find_tool("parted"), "-s", raw_device, "mkpart", "primary", "1MiB", "100%"],
                 check=True,
             )
         log.info("Partition scheme %s applied to %s.", scheme_name, raw_device)
@@ -406,12 +431,12 @@ def drive_repair():
         log.error("No drive node found. Cannot repair.")
         return
     raw_device = _get_raw_device(drive)
-    cmd = ["sfdisk", raw_device]
+    cmd = [_find_tool("sfdisk"), raw_device]
     log.info("Attempting drive repair on %s (raw: %s)...", drive, raw_device)
     try:
         subprocess.run(["umount", drive], check=True)
         subprocess.run(cmd, input=b",,0c;\n", check=True)
-        subprocess.run(["mkfs.vfat", "-F", "32", "-n", "REPAIRED", drive], check=True)
+        subprocess.run([_find_tool("mkfs.vfat"), "-F", "32", "-n", "REPAIRED", drive], check=True)
         log.info("Successfully repaired drive %s (FAT32).", drive)
     except Exception as e:
         log.error("Could not repair drive %s: %s: %s", drive, type(e).__name__, e)
@@ -517,7 +542,7 @@ def winlocalaccname():
                             <Description>Primary Local Account</Description>
                             <DisplayName>{user_name}</DisplayName>
                             <Group>Administrators</Group>
-                            <Name>{user_name}</Name>
+                            <n>{user_name}</n>
                         </LocalAccount>
                     </LocalAccounts>
                 </UserAccounts>
