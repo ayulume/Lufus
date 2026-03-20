@@ -1,4 +1,4 @@
-name: Build AppImage
+name: Build & Release AppImage
 
 on:
   push:
@@ -7,18 +7,20 @@ on:
       - "*-beta"
 
 jobs:
-  build:
+  build-appimage:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Python
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -29,20 +31,29 @@ jobs:
             libdbus-1-3 \
             libxcb-cursor0
 
-      - name: Run build script
+      - name: Build AppImage
         run: bash appimage-setup-script.sh
         env:
           APPIMAGE_EXTRACT_AND_RUN: 1
 
-      - name: Upload AppImage
-        uses: actions/upload-artifact@v4
-        with:
-          name: Lufus-AppImage
-          path: "*.AppImage"
-          if-no-files-found: error
+      - name: Verify AppImage
+        run: |
+          ls -lh Lufus-x86_64.AppImage
+          file Lufus-x86_64.AppImage
+          chmod +x Lufus-x86_64.AppImage
 
-      - name: Release
+      - name: Generate checksums
+        run: |
+          sha256sum Lufus-x86_64.AppImage > Lufus-x86_64.AppImage.sha256
+          cat Lufus-x86_64.AppImage.sha256
+
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          files: "Lufus-x86_64.AppImage"
+          files: |
+            Lufus-x86_64.AppImage
+            Lufus-x86_64.AppImage.sha256
+          draft: false
+          prerelease: ${{ contains(github.ref, '-beta') }}
+          generate_release_notes: true
