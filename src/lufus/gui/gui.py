@@ -460,10 +460,13 @@ class FlashWorker(QThread):
             elif image_option == 0:  # Windows
                 if flash_mode == 0:
                     # iso mode for microslop windows
-                    scheme=PartitionScheme.SIMPLE_FAT32 # pass user selected partition schemes from here
-                #    PartitionScheme.WINDOWS_EXFAT
-                #    PartitionScheme.WINDOWS_NTFS
-                #   Are the available options 
+                    # passing user selected filesystem
+                    if states.currentFS == 0:
+                      scheme=PartitionScheme.WINDOWS_NTFS
+                    elif states.currentFS == 1:
+                      scheme=PartitionScheme.SIMPLE_FAT32
+                    elif states.currentFS == 2:
+                      scheme=PartitionScheme.WINDOWS_EXFAT
                     success = FlashUSB(iso_path, device_node,
                                        scheme,
                                        progress_cb=self.progress.emit,
