@@ -2,7 +2,8 @@
 [tool.briefcase]
 project_name = "Lufus"
 bundle = "com.github.hog185"
-version = "0.0.1"
+# keep version synced with version in [project]
+version = "0.1.0a1"
 url = "https://github.com/Hog185/Lufus"
 license.file = "LICENSE"
 author = "Hog185"
@@ -118,9 +119,14 @@ supported = false
 # Web deployments
 [tool.briefcase.app.lufus.web]
 supported = false
+[tool.lufus.metadata]
+variant = "Alpha Testing 'FOV' Fork"
+commit_date = 2026-03-26
+is_test = true
 [project]
 name = "lufus"
-version = "0.1.0"
+# keep version synced with version in [tool.briefcase]
+version = "0.1.0a1"
 description = "Physical drive imaging and formatting utility written in Python"
 readme = "README.md"
 license = {text = "MIT"}
