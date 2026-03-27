@@ -570,6 +570,37 @@ class lufus(QMainWindow):
         )
         self.flash_worker = None
         self.log_message(f"UI scale factor: {self._S.f():.3f}  (base 96 DPI)")
+        self._check_latest_download()
+
+    def _check_latest_download(self):
+        if getattr(states, "iso_path", ""):
+            return
+        try:
+            result = subprocess.run(
+                ["xdg-user-dir", "DOWNLOAD"], capture_output=True, text=True, timeout=2
+            )
+            downloads = Path(result.stdout.strip()) if result.returncode == 0 and result.stdout.strip() else Path.home() / "Downloads"
+        except Exception:
+            downloads = Path.home() / "Downloads"
+        if not downloads.is_dir():
+            return
+        try:
+            isos = sorted(downloads.glob("*.iso"), key=lambda p: p.stat().st_mtime, reverse=True)
+        except Exception:
+            return
+        if not isos:
+            return
+        latest = isos[0]
+        try:
+            file_size = latest.stat().st_size
+        except Exception:
+            return
+        states.iso_path = str(latest)
+        clean_name = latest.name
+        self.combo_boot.setItemText(0, clean_name)
+        self.input_label.setText(clean_name.rsplit(".", 1)[0].upper())
+        self.log_message(f"Latest download auto-loaded: {latest}")
+        self.log_message(f"Image size: {file_size:,} bytes ({file_size / (1024**3):.2f} GiB)")
 
     def _apply_styles(self) -> None:
         # load json values apply via qss all that yap is in the themes folder :3
@@ -999,6 +1030,8 @@ class lufus(QMainWindow):
         self.setStatusBar(self.statusBar)
         self.statusBar.showMessage(self._T.get("status_ready", "Ready"), 0)
 
+        self.update_image_option()
+
     def create_refresh_button(self):
         # create refresh button for usb device list :3
         S = self._S
@@ -1192,9 +1225,43 @@ class lufus(QMainWindow):
         # store expected hash for verification :3
         states.expected_hash = text.strip()
 
+    def _load_latest_download_iso(self):
+        # check downloads folder for the most recently modified iso :3
+        downloads_dir = Path.home() / "Downloads"
+        if not downloads_dir.is_dir():
+            return
+        isos = sorted(downloads_dir.glob("*.iso"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if not isos:
+            return
+        latest = isos[0]
+        file_size = latest.stat().st_size
+        states.iso_path = str(latest)
+        clean_name = latest.name
+        self.combo_boot.setItemText(0, clean_name)
+        self.input_label.setText(latest.stem.upper())
+        self.log_message(f"Latest download ISO loaded: {latest}")
+        self.log_message(f"Image size: {file_size:,} bytes ({file_size / (1024**3):.2f} GiB)")
+
     def _check_clipboard(self):
         # monitor clipboard for iso file paths :D
-        text = QApplication.clipboard().text().strip()
+        clipboard = QApplication.clipboard()
+        mime = clipboard.mimeData()
+        if mime.hasUrls():
+            for url in mime.urls():
+                local_file = url.toLocalFile()
+                if local_file and local_file.lower().endswith(".iso") and Path(local_file).is_file():
+                    if local_file == self._last_clipboard:
+                        return
+                    self._last_clipboard = local_file
+                    file_size = os.path.getsize(local_file)
+                    states.iso_path = local_file
+                    clean_name = local_file.split("/")[-1].split("\\")[-1]
+                    self.combo_boot.setItemText(0, clean_name)
+                    self.input_label.setText(clean_name.split(".")[0].upper())
+                    self.log_message(f"Image loaded from clipboard: {local_file}")
+                    self.log_message(f"Image size: {file_size:,} bytes ({file_size / (1024**3):.2f} GiB)")
+                    return
+        text = clipboard.text().strip()
         if text == self._last_clipboard:
             return
         self._last_clipboard = text
@@ -1531,7 +1598,7 @@ class lufus(QMainWindow):
             self.btn_cancel.setEnabled(True)
             self.progress_bar.setValue(0)
             self.progress_bar.setFormat(self._T.get("progress_verifying", "Verifying..."))
-
+# if you are reading this, fuck you
             self.verify_worker = VerifyWorker(states.iso_path, states.expected_hash)
             self.verify_worker.progress.connect(self.log_message)
             self.verify_worker.flash_done.connect(self.on_verify_finished)
