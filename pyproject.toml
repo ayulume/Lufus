@@ -7,7 +7,7 @@ name = "lufus"
 version = "1.0.0"  # keep synced with [tool.briefcase] version
 description = "A rufus clone written in Python and designed to work with Linux."
 readme = "README.md"
-license = { text = "MIT" }
+license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
 dependencies = [
