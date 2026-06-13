@@ -183,7 +183,7 @@ class AboutWindow(QDialog):
         QDesktopServices.openUrl(url)
 
     def github_open(self):
-        url = QUrl("https://github.com/Hog185/Lufus")
+        url = QUrl("https://github.com/Hogjects/Lufus")
         QDesktopServices.openUrl(url)
 
 
