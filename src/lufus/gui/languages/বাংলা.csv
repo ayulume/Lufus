@@ -39,6 +39,12 @@ chk_bad_blocks,ব্যাড ব্লক পরীক্ষা করুন
 chk_verify_hash,SHA256 চেকসম যাচাই করুন
 lbl_expected_hash,প্রত্যাশিত SHA256:
 progress_verifying,চেকসম যাচাই করা হচ্ছে...
+msgbox_flash_warning_title,সতর্কতা: ডেটা হারানো
+msgbox_flash_warning_body,"এটি নির্বাচিত ডিভাইসের সমস্ত ডেটা মুছে ফেলবে।
+
+ডিভাইস: {device}
+
+আপনি কি নিশ্চিত যে আপনি চালিয়ে যেতে চান?"
 msgbox_verify_fail_title,যাচাই ব্যর্থ
 msgbox_verify_fail_body,SHA256 চেকসম মিলেনি! ফাইলটি ক্ষতিগ্রস্ত হতে পারে।
 msgbox_invalid_hash_title,অবৈধ হ্যাশ

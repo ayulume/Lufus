@@ -39,6 +39,12 @@ chk_bad_blocks,Проверка устройства на плохие блок�
 chk_verify_hash,Проверить контрольную сумму SHA256
 lbl_expected_hash,Ожидаемый SHA256:
 progress_verifying,Проверка контрольной суммы...
+msgbox_flash_warning_title,Предупреждение: Потеря данных
+msgbox_flash_warning_body,"Это удалит ВСЕ данные на выбранном устройстве.
+
+Устройство: {device}
+
+Вы уверены, что хотите продолжить?"
 msgbox_verify_fail_title,Проверка не удалась
 msgbox_verify_fail_body,Контрольная сумма SHA256 не совпадает! Файл может быть повреждён.
 msgbox_invalid_hash_title,Неверный хеш

@@ -39,6 +39,12 @@ chk_bad_blocks,Check for Bad Blocks
 chk_verify_hash,Verify SHA256 checksum
 lbl_expected_hash,Expected SHA256:
 progress_verifying,Verifying Checksum...
+msgbox_flash_warning_title,Warning: Data Loss
+msgbox_flash_warning_body,"This will erase ALL data on the selected device.
+
+Device: {device}
+
+Are you sure you want to continue?"
 msgbox_verify_fail_title,Verification Failed
 msgbox_verify_fail_body,SHA256 checksum mismatch! The file may be corrupted.
 msgbox_invalid_hash_title,Invalid Hash

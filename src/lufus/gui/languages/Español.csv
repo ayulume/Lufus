@@ -39,6 +39,12 @@ chk_bad_blocks,Detectar bad blocks
 chk_verify_hash,Verificar suma SHA256
 lbl_expected_hash,SHA256 esperado:
 progress_verifying,Verificando suma SHA256...
+msgbox_flash_warning_title,Advertencia: Pérdida de datos
+msgbox_flash_warning_body,"Esto borrará TODOS los datos del dispositivo seleccionado.
+
+Dispositivo: {device}
+
+¿Está seguro de que desea continuar?"
 msgbox_verify_fail_title,Verificación fallida
 msgbox_verify_fail_body,¡La suma SHA256 no coincide! El archivo puede estar corrupto.
 msgbox_invalid_hash_title,Hash inválido

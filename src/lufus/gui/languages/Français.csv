@@ -39,6 +39,12 @@ chk_bad_blocks,Vérifier les secteurs défectueux
 chk_verify_hash,Vérifier la somme de contrôle SHA256
 lbl_expected_hash,SHA256 attendu :
 progress_verifying,Vérification de la somme de contrôle...
+msgbox_flash_warning_title,Avertissement : Perte de données
+msgbox_flash_warning_body,"Cette action va EFFACER TOUTES les données sur le périphérique sélectionné.
+
+Périphérique : {device}
+
+Êtes-vous sûr de vouloir continuer ?"
 msgbox_verify_fail_title,Échec de la vérification
 msgbox_verify_fail_body,La somme de contrôle SHA256 ne correspond pas ! Le fichier est peut-être corrompu.
 msgbox_invalid_hash_title,Hachage invalide

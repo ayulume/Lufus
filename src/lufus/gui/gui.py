@@ -1466,6 +1466,24 @@ class LufusWindow(QMainWindow):
             self._clear_speed_eta()
 
     def perform_flash(self):
+        # warn user about data loss before flashing :D
+        device_text = self.combo_device.currentText()
+        reply = QMessageBox.warning(
+            self,
+            self._T.get("msgbox_flash_warning_title", "Warning: Data Loss"),
+            self._T.get(
+                "msgbox_flash_warning_body",
+                "This will erase ALL data on the selected device.\n\n"
+                "Device: {device}\n\n"
+                "Are you sure you want to continue?",
+            ).format(device=device_text),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            self.log_message("Flash cancelled: user declined data loss warning", level="INFO")
+            return
+
         # perform actual flash operation :D
         options = {
             "iso_path": state.iso_path,

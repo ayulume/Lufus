@@ -39,6 +39,12 @@ chk_bad_blocks,Kontrollera Dåliga Block
 chk_verify_hash,Verifiera SHA256-kontrollsumma
 lbl_expected_hash,Förväntad SHA256:
 progress_verifying,Verifierar Kontrollsumma...
+msgbox_flash_warning_title,Varning: Dataförlust
+msgbox_flash_warning_body,"Detta raderar ALL data på den valda enheten.
+
+Enhet: {device}
+
+Är du säker på att du vill fortsätta?"
 msgbox_verify_fail_title,Fel vid Verifiering
 msgbox_verify_fail_body,SHA256-kontrollsumma stämmer inte! Filen kan vara korrupt.
 msgbox_invalid_hash_title,Felaktig hash
