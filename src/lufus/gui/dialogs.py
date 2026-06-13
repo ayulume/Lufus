@@ -15,14 +15,15 @@ from PySide6.QtWidgets import (
     QTextEdit,
     QVBoxLayout,
 )
-from PySide6.QtCore import Qt, Signal, QRegularExpression, QUrl
-from PySide6.QtGui import QFont, QRegularExpressionValidator, QDesktopServices
+from PySide6.QtCore import Qt, Signal, QRegularExpression
+from PySide6.QtGui import QFont, QRegularExpressionValidator
 import sys
 
 from lufus import state as states
 from lufus.gui.constants import THEME_DIR, _find_resource_dir
 from lufus.gui.scale import Scale
 from lufus.lufus_logging import get_logger
+from lufus import browse_freely
 
 
 class LogWindow(QDialog):
@@ -179,12 +180,10 @@ class AboutWindow(QDialog):
         self.setLayout(layout)
 
     def discord_open(self):
-        url = QUrl("https://discord.gg/4G6FeBwsxb")
-        QDesktopServices.openUrl(url)
+        browse_freely.open_url("https://discord.gg/4G6FeBwsxb")
 
     def github_open(self):
-        url = QUrl("https://github.com/Hogjects/Lufus")
-        QDesktopServices.openUrl(url)
+        browse_freely.open_url("https://github.com/Hogjects/Lufus")
 
 
 class SettingsDialog(QDialog):
