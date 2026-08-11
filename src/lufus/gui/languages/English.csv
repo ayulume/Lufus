@@ -39,6 +39,12 @@ chk_bad_blocks,Check for Bad Blocks
 chk_verify_hash,Verify SHA256 checksum
 lbl_expected_hash,Expected SHA256:
 progress_verifying,Verifying Checksum...
+msgbox_flash_warning_title,Warning: Data Loss
+msgbox_flash_warning_body,"This will erase ALL data on the selected device.
+
+Device: {device}
+
+Are you sure you want to continue?"
 msgbox_verify_fail_title,Verification Failed
 msgbox_verify_fail_body,SHA256 checksum mismatch! The file may be corrupted.
 msgbox_invalid_hash_title,Invalid Hash
@@ -87,11 +93,10 @@ msgbox_scan_error_title,Scan Error
 msgbox_scan_error_body,Failed to scan for USB devices:
 no_usb_found,No USB devices found
 dlg_select_image_title,Select Disk Image
-dlg_select_image_filter,"Disk Images (*.iso *.dmg *.img *.bin *.raw);;All Files (*)"
+dlg_select_image_filter,Disk Images (*.iso *.dmg *.img *.bin *.raw);;All Files (*)
 about_content,"Lufus is a disk image writer written in Python for Linux.
 Inspired by the original Rufus tool for Windows.
-Version: v1.0.0b1
-GitHub: github.com/hog185/lufus"
+GitHub: github.com/hogjects/lufus"
 about_subtitle,USB Flash Tool
 btn_close,Close
 btn_ok,OK
@@ -103,6 +108,7 @@ combo_badblocks_2pass,2 Pass
 combo_badblocks_3pass,3 Pass
 status_unmounting_all,Unmounting all partitions on {device}...
 status_unmounting,Unmounting {part}...
+status_remounting,Remounting {part}...
 status_format_starting,Starting format operation...
 status_format_in_progress,Formatting drive...
 status_format_complete,Format complete!
@@ -116,7 +122,7 @@ acc_boot,Boot image selector
 acc_boot_desc,Shows the currently selected image file
 acc_select,Browse for image file
 acc_image_option,Image option selector
-acc_image_option_desc,Choose the type of image to write: Windows, Linux, Other, or Format Only
+acc_image_option_desc,Choose the type of image to write: Windows
 acc_volume_label,Volume label input
 acc_volume_label_desc,Enter a name for the USB volume
 acc_filesystem,File system selector
