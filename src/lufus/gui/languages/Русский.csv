@@ -39,6 +39,12 @@ chk_bad_blocks,Проверка устройства на плохие блок�
 chk_verify_hash,Проверить контрольную сумму SHA256
 lbl_expected_hash,Ожидаемый SHA256:
 progress_verifying,Проверка контрольной суммы...
+msgbox_flash_warning_title,Предупреждение: Потеря данных
+msgbox_flash_warning_body,"Это удалит ВСЕ данные на выбранном устройстве.
+
+Устройство: {device}
+
+Вы уверены, что хотите продолжить?"
 msgbox_verify_fail_title,Проверка не удалась
 msgbox_verify_fail_body,Контрольная сумма SHA256 не совпадает! Файл может быть повреждён.
 msgbox_invalid_hash_title,Неверный хеш
@@ -90,7 +96,7 @@ dlg_select_image_title,Выберите образ для записи
 dlg_select_image_filter,Образы дисков (*.iso *.dmg *.img *.bin *.raw);;Все файлы (*)
 about_content,"Lufus - это программа для записи образов дисков, написанная на языке Python для Linux.
 Вдохновлено оригинальным инструментом Rufus для Windows.
-GitHub: github.com/hog185/lufus"
+GitHub: github.com/hogjects/lufus"
 about_subtitle,Инструмент для записи USB
 btn_close,Закрыть
 btn_ok,OK

@@ -39,6 +39,12 @@ chk_bad_blocks,فحص الجهاز بحثا عن القطاعات التالفة
 chk_verify_hash,التحقق من بصمة SHA256
 lbl_expected_hash,:SHA256 البصمة المتوقعة
 progress_verifying,...جاري التحقق من البصمة
+msgbox_flash_warning_title,تحذير: فقدان البيانات
+msgbox_flash_warning_body,"سيؤدي هذا إلى مسح كافة البيانات الموجودة على الجهاز المحدد.
+
+الجهاز: {device}
+
+هل أنت متأكد أنك تريد المتابعة؟"
 msgbox_verify_fail_title,فشل التحقق
 msgbox_verify_fail_body,!بصمة SHA256 غير متطابقة! قد يكون الملف تالفاً
 msgbox_invalid_hash_title,بصمة غير صالحة
@@ -90,7 +96,7 @@ dlg_select_image_title,اختار ملف الصورة
 dlg_select_image_filter,Disk Images (*.iso *.dmg *.img *.bin *.raw);;كل الملفات (*)
 about_content,"لوفس (lufus) هو برنامج مصنوع بلغة بايثون لنظام تشغيل لينيكس.
 مستوحى من برنامج روفس (rufus) الأصلي لنظام تشغيل ويندوز.
-GitHub: github.com/hog185/lufus"
+GitHub: github.com/hogjects/lufus"
 about_subtitle,أداة USB Flash
 btn_close,إغلاق
 btn_ok,OK

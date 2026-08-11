@@ -39,6 +39,12 @@ chk_bad_blocks,Auf defekte Blöcke prüfen
 chk_verify_hash,SHA256-Prüfsumme verifizieren
 lbl_expected_hash,Erwarteter SHA256:
 progress_verifying,Prüfsumme wird verifiziert...
+msgbox_flash_warning_title,Warnung: Datenverlust
+msgbox_flash_warning_body,"Dies löscht ALLE Daten auf dem ausgewählten Gerät.
+
+Gerät: {device}
+
+Sind Sie sicher, dass Sie fortfahren möchten?"
 msgbox_verify_fail_title,Verifizierung fehlgeschlagen
 msgbox_verify_fail_body,SHA256-Prüfsumme stimmt nicht überein! Die Datei ist möglicherweise beschädigt.
 msgbox_invalid_hash_title,Ungültiger Hash
@@ -90,7 +96,7 @@ dlg_select_image_title,Abbild auswählen
 dlg_select_image_filter,Abbilder (*.iso *.dmg *.img *.bin *.raw);;Alle Dateien (*)
 about_content,"lufus ist ein in Python geschriebener USB-Image-Writer für Linux.
 Inspiriert vom originalen lufus-Tool für Windows.
-GitHub: github.com/hog185/lufus"
+GitHub: github.com/hogjects/lufus"
 about_subtitle,USB-Flash-Tool
 btn_close,Schließen
 btn_ok,OK

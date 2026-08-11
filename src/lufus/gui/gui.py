@@ -9,8 +9,9 @@ import time
 import ssl
 import urllib.parse
 import urllib.request
-import webbrowser
 from typing import Dict, Any
+
+from lufus import browse_freely
 from packaging import version
 from platformdirs import user_config_dir
 from datetime import datetime
@@ -923,29 +924,8 @@ class LufusWindow(QMainWindow):
 
     def _open_url(self):
         # open github url in browser :D
-        url = "https://github.com/Hog185/Lufus"
-        pkexec_uid = os.environ.get("PKEXEC_UID")
-        if pkexec_uid and os.geteuid() == 0:
-            # when running as root via pkexec open as original user :3
-            try:
-                import pwd
-
-                user_info = pwd.getpwuid(int(pkexec_uid))
-                subprocess.Popen(
-                    ["runuser", "-u", user_info.pw_name, "--", "xdg-open", url],
-                    env={
-                        "DISPLAY": os.environ.get("DISPLAY", ":0"),
-                        "WAYLAND_DISPLAY": os.environ.get("WAYLAND_DISPLAY", ""),
-                        "XDG_RUNTIME_DIR": f"/run/user/{pkexec_uid}",
-                        "HOME": user_info.pw_dir,
-                        "PATH": "/usr/bin:/bin",
-                    },
-                )
-                return
-            except Exception as e:
-                self.log_message(f"Failed to open URL as user: {e}", level="WARN")
-        # fallback to normal browser open :D
-        webbrowser.open(url)
+        url = "https://github.com/Hogjects/Lufus"
+        browse_freely.open_url(url)
 
     def update_new_label(self, current_text):
         # update volume label in states :3
@@ -1486,6 +1466,24 @@ class LufusWindow(QMainWindow):
             self._clear_speed_eta()
 
     def perform_flash(self):
+        # warn user about data loss before flashing :D
+        device_text = self.combo_device.currentText()
+        reply = QMessageBox.warning(
+            self,
+            self._T.get("msgbox_flash_warning_title", "Warning: Data Loss"),
+            self._T.get(
+                "msgbox_flash_warning_body",
+                "This will erase ALL data on the selected device.\n\n"
+                "Device: {device}\n\n"
+                "Are you sure you want to continue?",
+            ).format(device=device_text),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            self.log_message("Flash cancelled: user declined data loss warning", level="INFO")
+            return
+
         # perform actual flash operation :D
         options = {
             "iso_path": state.iso_path,
@@ -1745,7 +1743,7 @@ class LufusWindow(QMainWindow):
             return True
 
     def get_latest_release(self):
-        owner = "Hog185"
+        owner = "Hogjects"
         repo = "Lufus"
         url = f"https://api.github.com/repos/{owner}/{repo}/releases/latest"
         current_version = state.version
@@ -1801,7 +1799,7 @@ class LufusWindow(QMainWindow):
         newupdate.exec()
         if newupdate.clickedButton() == download_btn:
             self.log_message(f"New update download button clicked", level="DEBUG")
-            webbrowser.open("https://github.com/Hog185/Lufus/releases")
+            browse_freely.open_url("https://github.com/Hogjects/Lufus/releases")
         else:
             self.log_message(f"download later button clicked", level="DEBUG")
 

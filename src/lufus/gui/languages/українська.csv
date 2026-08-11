@@ -39,6 +39,12 @@ chk_bad_blocks,Перевірити пристрій на наявність п�
 chk_verify_hash,Перевірити контрольну суму SHA256
 lbl_expected_hash,Очікуваний SHA256:
 progress_verifying,Перевірка контрольної суми...
+msgbox_flash_warning_title,Попередження: Втрата даних
+msgbox_flash_warning_body,"Це видалить ВСІ дані на вибраному пристрої.
+
+Пристрій: {device}
+
+Ви впевнені, що хочете продовжити?"
 msgbox_verify_fail_title,Перевірка не вдалася
 msgbox_verify_fail_body,Контрольна сума SHA256 не збігається! Файл може бути пошкоджений.
 msgbox_invalid_hash_title,Невірний хеш
